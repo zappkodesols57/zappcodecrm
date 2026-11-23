@@ -1598,15 +1598,15 @@ class HospitalLeadForm(forms.ModelForm):
                 existing_apt.status = AppointmentStatus.COMPLETED
                 existing_apt.save(update_fields=['status'])
 
-        # 1. Booking Status (OPD Booking, Consultation Booking, Slot Booking)
+        # 1. Booking Status (Direct Appointment Confirmed - No doctor approval bottleneck)
         if is_booking_selected or (appo_date and doc_name and not is_cancelled_or_not_interested and not is_followup_needed and not has_payment):
-            cd['appointment_status'] = "Awaiting Approval from Doctor"
+            cd['appointment_status'] = "Appointment Confirmed"
             if appo_date and not instance.next_followup_date:
                 instance.next_followup_date = appo_date
             from leads.models import LeadStage
-            booking_stage = LeadStage.objects.filter(name__iexact='Awaiting Approval from Doctor').first() or \
-                            LeadStage.objects.filter(name__iexact='Awaiting Doctor Approval').first() or \
-                            LeadStage.objects.filter(name__iexact='Appointment Confirmed').first()
+            booking_stage = LeadStage.objects.filter(name__iexact='Appointment - Confirmed').first() or \
+                            LeadStage.objects.filter(name__iexact='Appointment Confirmed').first() or \
+                            LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
             if booking_stage:
                 instance.stage = booking_stage
 
@@ -1742,7 +1742,7 @@ class HospitalLeadForm(forms.ModelForm):
                             doc_user = u
                             break
                         
-                    # Transfer / create appointment in PENDING_APPROVAL status until doctor confirms
+                    # Create appointment directly in APPROVED / CONFIRMED status
                     existing_apt = Appointment.objects.filter(lead=instance).order_by('-id').first()
                     prev_date = existing_apt.appointment_date if existing_apt else None
                     prev_time = existing_apt.appointment_time if existing_apt else None
@@ -1763,7 +1763,7 @@ class HospitalLeadForm(forms.ModelForm):
                         existing_apt.doctor_user = doc_user
                         existing_apt.appointment_date = appo_date_val
                         existing_apt.appointment_time = appo_time_val
-                        existing_apt.status = AppointmentStatus.PENDING_APPROVAL
+                        existing_apt.status = AppointmentStatus.APPROVED
                         existing_apt.notes = self.cleaned_data.get('remark_1') or existing_apt.notes
                         existing_apt.save(update_fields=['hospital', 'doctor_name', 'doctor_user', 'appointment_date', 'appointment_time', 'status', 'notes', 'is_rescheduled', 'rescheduled_from_date', 'rescheduled_from_time'])
                     else:
@@ -1774,7 +1774,7 @@ class HospitalLeadForm(forms.ModelForm):
                             doctor_user=doc_user,
                             appointment_date=appo_date_val,
                             appointment_time=appo_time_val,
-                            status=AppointmentStatus.PENDING_APPROVAL,
+                            status=AppointmentStatus.APPROVED,
                             notes=self.cleaned_data.get('remark_1') or '',
                             created_by=getattr(self, 'current_user', None)
                         )
@@ -1800,13 +1800,13 @@ class HospitalLeadForm(forms.ModelForm):
                             description=f"Appointment Booked with {doc_display} for {appo_date_val.strftime('%d %b %Y')} at {time_str}."
                         )
 
-                    # Notify Doctor about the new booking / approval request
+                    # Notify Doctor about the new booked appointment
                     if doc_user and (not creator or doc_user != creator):
-                        notif_title = "Appointment Rescheduled / Slot Changed" if was_rescheduled else "New Appointment Approval Request"
+                        notif_title = "Appointment Rescheduled / Slot Changed" if was_rescheduled else "New Appointment Booked"
                         notif_msg = (
                             f"Appointment for patient {instance.name} rescheduled with {doc_display} from {prev_date.strftime('%d %b %Y')} to {appo_date_val.strftime('%d %b %Y')} at {time_str}."
                             if was_rescheduled and prev_date else
-                            f"New appointment booking request received for patient {instance.name} on {appo_date_val.strftime('%d %b %Y')} at {time_str}. Please review and approve."
+                            f"New appointment booked for patient {instance.name} on {appo_date_val.strftime('%d %b %Y')} at {time_str}."
                         )
                         Notification.objects.create(
                             user=doc_user,

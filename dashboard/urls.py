@@ -38,8 +38,8 @@ urlpatterns = [
     path("daily-report/export-excel/", views.export_eod_report_excel, name="export_eod_report_excel"),
     path("reports/daily/", views.management_daily_reports, name="management_daily_reports"),
 
-    path("hospital/admin/", views.superadmin_home, name="hospital_admin_home"),
-    path("hospital/manager/", views.superadmin_home, name="hospital_manager_home"),
+    path("hospital/admin/", views.hospital_admin_home, name="hospital_admin_home"),
+    path("hospital/manager/", views.hospital_admin_home, name="hospital_manager_home"),
     path("hospital/doctor/", views.doctor_home, name="hospital_doctor_home"),
     path("doctor/", views.doctor_home, name="doctor_home"),
     path("doctor/appointments/", views.doctor_appointments, name="doctor_appointments"),

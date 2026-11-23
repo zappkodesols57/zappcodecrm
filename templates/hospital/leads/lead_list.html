@@ -863,7 +863,15 @@
 
           </tr>
           {% empty %}
-          <tr><td colspan="11"><div class="empty-state py-5 text-center text-muted"><i class="fa-solid fa-inbox fs-2 mb-2 opacity-50"></i><p class="mb-0 fw-semibold">No patient leads found.</p></div></td></tr>
+          <tr>
+            <td colspan="11" class="text-center py-5">
+              <div class="empty-state-standard py-4 text-center text-muted">
+                <i class="fa-solid fa-inbox fs-2 mb-2 opacity-50 d-block"></i>
+                <div class="fw-semibold fs-6 text-dark mb-1">No patient leads found.</div>
+                <div class="small text-muted">There are no leads matching your current criteria or filter scope.</div>
+              </div>
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>

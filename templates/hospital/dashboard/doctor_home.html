@@ -341,7 +341,7 @@
     </div>
   </div>
 
-  <!-- Stats KPI Cards (Strictly 2 per row on mobile) -->
+  <!-- Stats KPI Cards -->
   <div class="row g-2 g-md-3 mb-4">
     <div class="col-6 col-sm-6 col-lg">
       <div class="doc-stat-card kpi-today" onclick="switchMainTab('appointments', 'today')">
@@ -364,12 +364,12 @@
     </div>
 
     <div class="col-6 col-sm-6 col-lg">
-      <div class="doc-stat-card kpi-pending" onclick="switchMainTab('appointments', 'pending')">
+      <div class="doc-stat-card kpi-total" onclick="switchMainTab('completed')">
         <div>
-          <div class="doc-stat-title">Pending Approval</div>
-          <div class="doc-stat-val text-warning">{{ pending_count }}</div>
+          <div class="doc-stat-title">Completed Consultations</div>
+          <div class="doc-stat-val text-success">{{ completed_count }}</div>
         </div>
-        <div class="doc-stat-sub">Bookings awaiting confirmation</div>
+        <div class="doc-stat-sub">Finished patient visits</div>
       </div>
     </div>
 
@@ -386,12 +386,12 @@
     </div>
 
     <div class="col-6 col-sm-6 col-lg">
-      <div class="doc-stat-card kpi-total" onclick="switchMainTab('completed')">
+      <div class="doc-stat-card kpi-pending" onclick="switchMainTab('calendar', 'recorded_leaves')">
         <div>
-          <div class="doc-stat-title">Total Bookings</div>
-          <div class="doc-stat-val" style="color: #0f2744;">{{ completed_count }}</div>
+          <div class="doc-stat-title">Leave Calendar</div>
+          <div class="doc-stat-val" style="color: #0f2744;">{{ leaves|length }}</div>
         </div>
-        <div class="doc-stat-sub">Completed consultations</div>
+        <div class="doc-stat-sub">Logged / scheduled leaves</div>
       </div>
     </div>
   </div>
@@ -402,32 +402,31 @@
       <!-- 1. Appointments Tab -->
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="tab-appointments-btn" data-bs-toggle="pill" data-bs-target="#pane-appointments" type="button" role="tab" aria-selected="true">
-          <span>Appointments</span>
-          <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill ms-1">{{ today_count|add:pending_count|add:upcoming_count|add:admitted_count }}</span>
+          <span><i class="fa-solid fa-calendar-check me-1"></i>Appointment Booked</span>
+          <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill ms-1">{{ total_booked_count }}</span>
         </button>
       </li>
 
-      <!-- 2. Calendar Tab -->
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-calendar-btn" data-bs-toggle="pill" data-bs-target="#pane-calendar" type="button" role="tab" aria-selected="false">
-          <span>Calendar</span>
-          <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-1">{{ leaves|length }} Leaves</span>
-        </button>
-      </li>
-
-      <!-- 3. Completed Tab -->
+      <!-- 2. Completed Tab -->
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-completed-btn" data-bs-toggle="pill" data-bs-target="#pane-completed" type="button" role="tab" aria-selected="false">
-          <span>Completed</span>
+          <span><i class="fa-solid fa-circle-check me-1"></i>Completed Consultations</span>
           <span class="badge bg-success bg-opacity-10 text-success rounded-pill ms-1">{{ completed_count }}</span>
         </button>
       </li>
 
-      <!-- 4. Cancelled Tab -->
+      <!-- 3. OPD Hours Calendar Tab -->
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-cancelled-btn" data-bs-toggle="pill" data-bs-target="#pane-cancelled" type="button" role="tab" aria-selected="false">
-          <span>Cancelled</span>
-          <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill ms-1">{{ cancelled_count }}</span>
+        <button class="nav-link" id="tab-opd-hours-btn" data-bs-toggle="pill" data-bs-target="#pane-opd-hours" type="button" role="tab" aria-selected="false">
+          <span><i class="fa-solid fa-clock me-1"></i>OPD Working Hours</span>
+        </button>
+      </li>
+
+      <!-- 4. Leave Calendar Tab -->
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-leaves-btn" data-bs-toggle="pill" data-bs-target="#pane-leaves" type="button" role="tab" aria-selected="false">
+          <span><i class="fa-solid fa-calendar-days me-1"></i>Leave Calendar</span>
+          <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-1">{{ leaves|length }}</span>
         </button>
       </li>
     </ul>
@@ -437,173 +436,48 @@
   <div class="tab-content" id="doctorMainTabsContent">
 
     <!-- ============================================================ -->
-    <!-- 1. APPOINTMENTS TAB (4 SUB-TABS) -->
+    <!-- 1. APPOINTMENT BOOKED TAB -->
     <!-- ============================================================ -->
     <div class="tab-pane fade show active" id="pane-appointments" role="tabpanel">
       <div class="doc-table-card">
         <!-- Subtabs Header -->
-        <div class="px-4 pt-3 pb-3 border-bottom bg-white d-flex">
+        <div class="px-4 pt-3 pb-3 border-bottom bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
           <div class="doc-subtabs-wrap">
             <ul class="nav nav-tabs doc-subtabs" id="appointmentsSubTabs" role="tablist">
-              <!-- Subtab 1: Pending Requests -->
+              <!-- Subtab 1: Today's Appointments -->
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="sub-pending-btn" data-bs-toggle="tab" data-bs-target="#sub-pending-pane" type="button" role="tab">
-                  Pending Requests <span class="badge bg-warning text-dark rounded-pill ms-1">{{ pending_count }}</span>
-                </button>
-              </li>
-              <!-- Subtab 2: Today's Appointments -->
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="sub-today-btn" data-bs-toggle="tab" data-bs-target="#sub-today-pane" type="button" role="tab">
+                <button class="nav-link active" id="sub-today-btn" data-bs-toggle="tab" data-bs-target="#sub-today-pane" type="button" role="tab">
                   Today's Appointments <span class="badge bg-primary text-white rounded-pill ms-1">{{ today_count }}</span>
                 </button>
               </li>
-              <!-- Subtab 3: Upcoming Appointments -->
+              <!-- Subtab 2: Upcoming Appointments -->
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="sub-upcoming-btn" data-bs-toggle="tab" data-bs-target="#sub-upcoming-pane" type="button" role="tab">
                   Upcoming Appointments <span class="badge bg-info text-dark rounded-pill ms-1">{{ upcoming_count }}</span>
                 </button>
               </li>
-              <!-- Subtab 4: Admitted -->
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="sub-admitted-btn" data-bs-toggle="tab" data-bs-target="#sub-admitted-pane" type="button" role="tab">
-                  Admitted <span class="badge bg-success text-white rounded-pill ms-1">{{ admitted_count }}</span>
-                </button>
-              </li>
             </ul>
           </div>
+          <span class="small text-muted">
+            <i class="fa-solid fa-circle-info text-primary me-1"></i>Appointments booked directly by Telecallers &amp; Admins
+          </span>
         </div>
 
         <!-- Subtabs Content -->
         <div class="tab-content p-0" id="appointmentsSubTabsContent">
 
-          <!-- 1.1 PENDING REQUESTS -->
-          <div class="tab-pane fade show active" id="sub-pending-pane" role="tabpanel">
+          <!-- 1.1 TODAY'S APPOINTMENTS -->
+          <div class="tab-pane fade show active" id="sub-today-pane" role="tabpanel">
             <div class="table-responsive">
               <table class="table doc-table align-middle mb-0">
                 <thead class="doc-table-head">
                   <tr>
                     <th class="ps-4">Patient Name</th>
                     <th>Contact</th>
-                    <th>Doctor / Department</th>
-                    <th>Disease</th>
+                    <th>Department</th>
+                    <th>Condition / Disease</th>
                     <th>Date / Slot</th>
-                    <th>Remarks</th>
-                    <th class="pe-4 text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for apt in pending_apts %}
-                  <tr class="table-warning-subtle">
-                    <td class="ps-4">
-                      <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
-                      <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
-                    </td>
-                    <td>
-                      <div class="fw-semibold text-dark">{{ apt.lead.mobile }}</div>
-                      {% if apt.lead.location or apt.lead.city %}
-                      <div class="small text-muted">{{ apt.lead.location|default:apt.lead.city }}</div>
-                      {% endif %}
-                    </td>
-                    <td>
-                      <div class="fw-semibold text-dark">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
-                      <div class="small text-muted">{{ apt.lead.custom_data.department|default:user.doctor_departments_display|striptags }}</div>
-                    </td>
-                    <td>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"General Consultation" }}</span>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"General Consultation" }}</span>
-                    </td>
-                    <td>
-                      <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
-                      <div class="small text-dark fw-semibold">{{ apt.appointment_time|time:"h:i A"|default:"Slot not fixed" }}</div>
-                      {% if apt.is_rescheduled %}
-                        <div class="mt-1" style="font-size: 0.72rem;">
-                          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
-                            <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i>Slot Updated
-                          </span>
-                          {% if apt.rescheduled_from_date %}
-                            <div class="text-muted text-decoration-line-through mt-0.5" style="font-size: 0.7rem;">
-                              Prev: {{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}
-                            </div>
-                          {% endif %}
-                        </div>
-                      {% endif %}
-                    </td>
-                    <td style="max-width: 220px;">
-                      <span class="small text-muted text-truncate d-inline-block" style="max-width: 220px;" title="{{ apt.notes|default:apt.lead.notes|default:'Appointment requested' }}">
-                        {{ apt.notes|default:apt.lead.notes|default:"Pending Doctor Approval" }}
-                      </span>
-                    </td>
-                    <td class="pe-4 text-end text-nowrap">
-                      <!-- View Form (Doctors View) -->
-                      <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye me-1"></i> View Form
-                      </a>
-
-                      <!-- Change Status Dropdown -->
-                      <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                          Status
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
-                          <li>
-                            <form method="POST">
-                              {% csrf_token %}
-                              <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
-                              <input type="hidden" name="action" value="approve">
-                              <input type="hidden" name="ref_tab" value="appointments">
-                              <input type="hidden" name="ref_subtab" value="pending">
-                              <button type="submit" class="dropdown-item">
-                                Confirm (Approve)
-                              </button>
-                            </form>
-                          </li>
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              Reschedule Slot
-                            </button>
-                          </li>
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
-                              Complete
-                            </button>
-                          </li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              Cancel Request
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-                    </td>
-                  </tr>
-                  {% include "hospital/dashboard/_doctor_apt_modals.html" with apt=apt current_subtab="pending" %}
-                  {% empty %}
-                  <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
-                      <i class="fa-solid fa-clipboard-check fs-2 text-secondary mb-2 d-block opacity-50"></i>
-                      <h6 class="fw-bold text-dark mb-1">No Pending Appointment Requests</h6>
-                      <small>All appointment booking requests have been reviewed.</small>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- 1.2 TODAY'S APPOINTMENTS -->
-          <div class="tab-pane fade" id="sub-today-pane" role="tabpanel">
-            <div class="table-responsive">
-              <table class="table doc-table align-middle mb-0">
-                <thead class="doc-table-head">
-                  <tr>
-                    <th class="ps-4">Patient Name</th>
-                    <th>Contact</th>
-                    <th>Doctor / Department</th>
-                    <th>Disease</th>
-                    <th>Date / Slot</th>
-                    <th>Remarks</th>
+                    <th>Telecaller / Note</th>
                     <th class="pe-4 text-end">Actions</th>
                   </tr>
                 </thead>
@@ -621,77 +495,39 @@
                       {% endif %}
                     </td>
                     <td>
-                      <div class="fw-semibold text-dark">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
-                      <div class="small text-muted">{{ apt.lead.custom_data.department|default:user.doctor_departments_display|striptags }}</div>
+                      <div class="fw-semibold text-dark">{{ apt.lead.custom_dept|default:user.doctor_departments_display|striptags }}</div>
+                      <div class="small text-muted">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
                     </td>
                     <td>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"OPD Consultation" }}</span>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"OPD Consultation" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"General Consultation" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-success">{{ apt.appointment_date|date:"d M Y" }}</div>
                       <div class="small text-dark fw-bold">{{ apt.appointment_time|time:"h:i A"|default:"Today Slot" }}</div>
-                      {% if apt.is_rescheduled %}
-                        <div class="mt-1" style="font-size: 0.72rem;">
-                          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
-                            <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i>Slot Updated
-                          </span>
-                          {% if apt.rescheduled_from_date %}
-                            <div class="text-muted text-decoration-line-through mt-0.5" style="font-size: 0.7rem;">
-                              Prev: {{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}
-                            </div>
-                          {% endif %}
-                        </div>
-                      {% endif %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle mt-0.5" style="font-size: 0.7rem;">Booked / Confirmed</span>
                     </td>
                     <td style="max-width: 220px;">
-                      <span class="small text-muted text-truncate d-inline-block" style="max-width: 220px;" title="{{ apt.doctor_notes|default:apt.notes|default:'Scheduled for today' }}">
-                        {{ apt.doctor_notes|default:apt.notes|default:"Scheduled for today" }}
+                      <div class="small fw-semibold text-dark">
+                        {% if apt.lead.assigned_to %}
+                          <i class="fa-solid fa-headset me-1 text-primary"></i>{{ apt.lead.assigned_to.get_full_name|default:apt.lead.assigned_to.username }}
+                        {% else %}
+                          <span class="text-muted">Unassigned</span>
+                        {% endif %}
+                      </div>
+                      <span class="small text-muted text-truncate d-inline-block mt-0.5" style="max-width: 220px;" title="{{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:apt.notes }}">
+                        {{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:apt.notes|default:"Appointment Booked" }}
                       </span>
                     </td>
                     <td class="pe-4 text-end text-nowrap">
-                      <!-- View Form -->
+                      <!-- 1. View Form (Read-only Patient Review) -->
                       <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye me-1"></i> View Form
+                        <i class="fa-solid fa-eye me-1 text-primary"></i> View Form
                       </a>
 
-                      <!-- Mark Done Quick Action -->
-                      <button type="button" class="btn btn-sm btn-success text-white fw-bold shadow-sm px-2.5 py-1 me-1" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
-                        <i class="fa-solid fa-check me-1"></i> Complete
+                      <!-- 2. + Add Note -->
+                      <button type="button" class="btn btn-sm btn-primary fw-semibold shadow-sm px-2.5 py-1" style="background: #0f2744; border-color: #0f2744;" data-bs-toggle="modal" data-bs-target="#addNoteModal{{ apt.pk }}" title="Add Clinical Note">
+                        <i class="fa-solid fa-plus me-1"></i> Add Note
                       </button>
-
-                      <!-- Change Status Dropdown -->
-                      <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                          Status
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              Reschedule Slot
-                            </button>
-                          </li>
-                          <li>
-                            <form method="POST">
-                              {% csrf_token %}
-                              <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
-                              <input type="hidden" name="action" value="update_status">
-                              <input type="hidden" name="new_status" value="PENDING_APPROVAL">
-                              <input type="hidden" name="ref_tab" value="appointments">
-                              <input type="hidden" name="ref_subtab" value="today">
-                              <button type="submit" class="dropdown-item">
-                                Set Pending
-                              </button>
-                            </form>
-                          </li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              Cancel Appointment
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
                     </td>
                   </tr>
                   {% include "hospital/dashboard/_doctor_apt_modals.html" with apt=apt current_subtab="today" %}
@@ -700,7 +536,7 @@
                     <td colspan="7" class="text-center py-5 text-muted">
                       <i class="fa-regular fa-calendar-check fs-2 text-secondary mb-2 d-block opacity-50"></i>
                       <h6 class="fw-bold text-dark mb-1">No Consultations Scheduled For Today</h6>
-                      <small>Upcoming consultations will appear here automatically on scheduled date.</small>
+                      <small>Appointments booked by telecallers for today will appear here.</small>
                     </td>
                   </tr>
                   {% endfor %}
@@ -709,7 +545,7 @@
             </div>
           </div>
 
-          <!-- 1.3 UPCOMING APPOINTMENTS -->
+          <!-- 1.2 UPCOMING APPOINTMENTS -->
           <div class="tab-pane fade" id="sub-upcoming-pane" role="tabpanel">
             <div class="table-responsive">
               <table class="table doc-table align-middle mb-0">
@@ -717,10 +553,10 @@
                   <tr>
                     <th class="ps-4">Patient Name</th>
                     <th>Contact</th>
-                    <th>Doctor / Department</th>
-                    <th>Disease</th>
+                    <th>Department</th>
+                    <th>Condition / Disease</th>
                     <th>Date / Slot</th>
-                    <th>Remarks</th>
+                    <th>Telecaller / Note</th>
                     <th class="pe-4 text-end">Actions</th>
                   </tr>
                 </thead>
@@ -738,77 +574,39 @@
                       {% endif %}
                     </td>
                     <td>
-                      <div class="fw-semibold text-dark">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
-                      <div class="small text-muted">{{ apt.lead.custom_data.department|default:user.doctor_departments_display|striptags }}</div>
+                      <div class="fw-semibold text-dark">{{ apt.lead.custom_dept|default:user.doctor_departments_display|striptags }}</div>
+                      <div class="small text-muted">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
                     </td>
                     <td>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"Consultation" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
                       <div class="small text-muted">{{ apt.appointment_time|time:"h:i A"|default:"Slot Booked" }}</div>
-                      {% if apt.is_rescheduled %}
-                        <div class="mt-1" style="font-size: 0.72rem;">
-                          <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
-                            <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i>Slot Updated
-                          </span>
-                          {% if apt.rescheduled_from_date %}
-                            <div class="text-muted text-decoration-line-through mt-0.5" style="font-size: 0.7rem;">
-                              Prev: {{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}
-                            </div>
-                          {% endif %}
-                        </div>
-                      {% endif %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle mt-0.5" style="font-size: 0.7rem;">Upcoming Booked</span>
                     </td>
                     <td style="max-width: 220px;">
-                      <span class="small text-muted text-truncate d-inline-block" style="max-width: 220px;" title="{{ apt.doctor_notes|default:apt.notes|default:'Confirmed upcoming booking' }}">
-                        {{ apt.doctor_notes|default:apt.notes|default:"Confirmed upcoming booking" }}
+                      <div class="small fw-semibold text-dark">
+                        {% if apt.lead.assigned_to %}
+                          <i class="fa-solid fa-headset me-1 text-primary"></i>{{ apt.lead.assigned_to.get_full_name|default:apt.lead.assigned_to.username }}
+                        {% else %}
+                          <span class="text-muted">Unassigned</span>
+                        {% endif %}
+                      </div>
+                      <span class="small text-muted text-truncate d-inline-block mt-0.5" style="max-width: 220px;" title="{{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:apt.notes }}">
+                        {{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:apt.notes|default:"Appointment Booked" }}
                       </span>
                     </td>
                     <td class="pe-4 text-end text-nowrap">
-                      <!-- View Form -->
+                      <!-- 1. View Form -->
                       <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye me-1"></i> View Form
+                        <i class="fa-solid fa-eye me-1 text-primary"></i> View Form
                       </a>
 
-                      <!-- Change Status Dropdown -->
-                      <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                          Status
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              Reschedule Slot
-                            </button>
-                          </li>
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
-                              Complete
-                            </button>
-                          </li>
-                          <li>
-                            <form method="POST">
-                              {% csrf_token %}
-                              <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
-                              <input type="hidden" name="action" value="update_status">
-                              <input type="hidden" name="new_status" value="PENDING_APPROVAL">
-                              <input type="hidden" name="ref_tab" value="appointments">
-                              <input type="hidden" name="ref_subtab" value="upcoming">
-                              <button type="submit" class="dropdown-item">
-                                Set Pending
-                              </button>
-                            </form>
-                          </li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              Cancel Appointment
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
+                      <!-- 2. + Add Note -->
+                      <button type="button" class="btn btn-sm btn-primary fw-semibold shadow-sm px-2.5 py-1" style="background: #0f2744; border-color: #0f2744;" data-bs-toggle="modal" data-bs-target="#addNoteModal{{ apt.pk }}" title="Add Clinical Note">
+                        <i class="fa-solid fa-plus me-1"></i> Add Note
+                      </button>
                     </td>
                   </tr>
                   {% include "hospital/dashboard/_doctor_apt_modals.html" with apt=apt current_subtab="upcoming" %}
@@ -817,99 +615,7 @@
                     <td colspan="7" class="text-center py-5 text-muted">
                       <i class="fa-regular fa-calendar-plus fs-2 text-secondary mb-2 d-block opacity-50"></i>
                       <h6 class="fw-bold text-dark mb-1">No Upcoming Appointments</h6>
-                      <small>Confirmed future bookings will be listed here.</small>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- 1.4 ADMITTED -->
-          <div class="tab-pane fade" id="sub-admitted-pane" role="tabpanel">
-            <div class="table-responsive">
-              <table class="table doc-table align-middle mb-0">
-                <thead class="doc-table-head">
-                  <tr>
-                    <th class="ps-4">Patient Name</th>
-                    <th>Contact</th>
-                    <th>Doctor / Department</th>
-                    <th>Disease</th>
-                    <th>Date / Slot</th>
-                    <th>Remarks</th>
-                    <th class="pe-4 text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for apt in admitted_apts %}
-                  <tr>
-                    <td class="ps-4">
-                      <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
-                      <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
-                    </td>
-                    <td>
-                      <div class="fw-semibold text-dark">{{ apt.lead.mobile }}</div>
-                      {% if apt.lead.location or apt.lead.city %}
-                      <div class="small text-muted">{{ apt.lead.location|default:apt.lead.city }}</div>
-                      {% endif %}
-                    </td>
-                    <td>
-                      <div class="fw-semibold text-dark">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
-                      <div class="small text-muted">{{ apt.lead.custom_data.department|default:user.doctor_departments_display|striptags }}</div>
-                    </td>
-                    <td>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Admitted / IPD" }}</span>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Admitted / IPD" }}</span>
-                    </td>
-                    <td>
-                      <div class="fw-bold text-success">{{ apt.appointment_date|date:"d M Y" }}</div>
-                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Admitted Stage</span>
-                    </td>
-                    <td style="max-width: 220px;">
-                      <span class="small text-muted text-truncate d-inline-block" style="max-width: 220px;" title="{{ apt.doctor_notes|default:apt.notes|default:'In hospital observation' }}">
-                        {{ apt.doctor_notes|default:apt.notes|default:"In-hospital / Under observation" }}
-                      </span>
-                    </td>
-                    <td class="pe-4 text-end text-nowrap">
-                      <!-- View Form -->
-                      <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye me-1"></i> View Form
-                      </a>
-
-                      <!-- Complete Action -->
-                      <button type="button" class="btn btn-sm btn-success text-white fw-bold shadow-sm px-2.5 py-1 me-1" data-bs-toggle="modal" data-bs-target="#markDoneModal{{ apt.pk }}">
-                        <i class="fa-solid fa-check me-1"></i> Complete
-                      </button>
-
-                      <!-- Change Status Dropdown -->
-                      <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                          Status
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                              Reschedule Slot
-                            </button>
-                          </li>
-                          <li><hr class="dropdown-divider"></li>
-                          <li>
-                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                              Cancel
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-                    </td>
-                  </tr>
-                  {% include "hospital/dashboard/_doctor_apt_modals.html" with apt=apt current_subtab="admitted" %}
-                  {% empty %}
-                  <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
-                      <i class="fa-solid fa-bed-pulse fs-2 text-secondary mb-2 d-block opacity-50"></i>
-                      <h6 class="fw-bold text-dark mb-1">No Active Admitted Patient Consultations</h6>
-                      <small>Active admitted and in-clinic consultation cases will appear here.</small>
+                      <small>Booked future consultations will be listed here.</small>
                     </td>
                   </tr>
                   {% endfor %}
@@ -923,27 +629,169 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- 2. CALENDAR TAB (3 SUB-TABS) -->
+    <!-- 2. COMPLETED APPOINTMENTS TAB -->
     <!-- ============================================================ -->
-    <div class="tab-pane fade" id="pane-calendar" role="tabpanel">
+    <div class="tab-pane fade" id="pane-completed" role="tabpanel">
+      <div class="doc-table-card">
+        <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-white">
+          <div>
+            <h6 class="fw-bold text-dark mb-0">Completed Consultations</h6>
+            <small class="text-muted">Patients who have completed their appointment visits</small>
+          </div>
+          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-1.5 rounded-pill fw-bold">
+            {{ completed_count }} Completed
+          </span>
+        </div>
+        <div class="table-responsive">
+          <table class="table doc-table align-middle mb-0">
+            <thead class="doc-table-head">
+              <tr>
+                <th class="ps-4">Patient Name</th>
+                <th>Contact</th>
+                <th>Department</th>
+                <th>Condition / Disease</th>
+                <th>Consultation Date</th>
+                <th>Clinical Remarks / Notes</th>
+                <th class="pe-4 text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for apt in completed_apts %}
+              <tr>
+                <td class="ps-4">
+                  <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
+                  <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark">{{ apt.lead.mobile }}</div>
+                  {% if apt.lead.location or apt.lead.city %}
+                  <div class="small text-muted">{{ apt.lead.location|default:apt.lead.city }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark">{{ apt.lead.custom_dept|default:user.doctor_departments_display|striptags }}</div>
+                  <div class="small text-muted">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
+                </td>
+                <td>
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"Consultation" }}</span>
+                </td>
+                <td>
+                  <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
+                  <div class="small text-muted">{{ apt.appointment_time|time:"h:i A"|default:"Completed" }}</div>
+                </td>
+                <td style="max-width: 250px;">
+                  <span class="small text-dark text-truncate d-inline-block" style="max-width: 250px;" title="{{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:'Completed' }}">
+                    {{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:"Completed" }}
+                  </span>
+                </td>
+                <td class="pe-4 text-end text-nowrap">
+                  <!-- 1. View Form -->
+                  <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
+                    <i class="fa-solid fa-eye me-1 text-primary"></i> View Form
+                  </a>
+
+                  <!-- 2. + Add Note -->
+                  <button type="button" class="btn btn-sm btn-primary fw-semibold shadow-sm px-2.5 py-1" style="background: #0f2744; border-color: #0f2744;" data-bs-toggle="modal" data-bs-target="#addNoteModal{{ apt.pk }}" title="Add Clinical Note">
+                    <i class="fa-solid fa-plus me-1"></i> Add Note
+                  </button>
+                </td>
+              </tr>
+              {% include "hospital/dashboard/_doctor_apt_modals.html" with apt=apt current_subtab="completed" %}
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                  <i class="fa-solid fa-circle-check fs-2 text-secondary mb-2 d-block opacity-50"></i>
+                  <h6 class="fw-bold text-dark mb-1">No Completed Consultations</h6>
+                  <small>Consultations marked completed will appear in this archive.</small>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 3. OPD WORKING HOURS CALENDAR TAB -->
+    <!-- ============================================================ -->
+    <div class="tab-pane fade" id="pane-opd-hours" role="tabpanel">
+      <div class="doc-table-card p-4">
+        <div class="row justify-content-center">
+          <div class="col-lg-8">
+            <div class="card border border-light-subtle rounded-4 p-4 shadow-sm bg-white">
+              <div class="mb-4 pb-3 border-bottom">
+                <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-clock text-primary me-2"></i>Regular OPD Working Schedule</h5>
+                <small class="text-muted">Configure your standard clinic timing, consultation slot intervals, and weekly off days.</small>
+              </div>
+
+              <form method="POST" id="docScheduleForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_schedule">
+                <input type="hidden" name="ref_tab" value="opd-hours">
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark mb-1">OPD Start Time <span class="text-danger">*</span></label>
+                    <input type="time" name="opd_start_time" class="form-control" value="{{ schedule.opd_start_time|time:'H:i' }}" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark mb-1">OPD End Time <span class="text-danger">*</span></label>
+                    <input type="time" name="opd_end_time" class="form-control" value="{{ schedule.opd_end_time|time:'H:i' }}" required>
+                  </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark mb-1">Slot Duration (Minutes)</label>
+                    <select name="slot_duration_minutes" class="form-select">
+                      <option value="15" {% if schedule.slot_duration_minutes == 15 %}selected{% endif %}>15 Minutes</option>
+                      <option value="20" {% if schedule.slot_duration_minutes == 20 %}selected{% endif %}>20 Minutes</option>
+                      <option value="30" {% if schedule.slot_duration_minutes == 30 %}selected{% endif %}>30 Minutes</option>
+                      <option value="45" {% if schedule.slot_duration_minutes == 45 %}selected{% endif %}>45 Minutes</option>
+                      <option value="60" {% if schedule.slot_duration_minutes == 60 %}selected{% endif %}>60 Minutes</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-dark mb-1">Weekly Off Days</label>
+                    <input type="text" name="off_days" class="form-control" value="{{ schedule.off_days }}" placeholder="e.g. Sunday, Saturday">
+                    <small class="text-muted" style="font-size: 0.72rem;">Days when you are regularly off</small>
+                  </div>
+                </div>
+
+                <div class="mb-4 form-check form-switch p-3 bg-light rounded-3 border">
+                  <input class="form-check-input ms-0 me-2" type="checkbox" name="is_available" value="1" id="isAvailCheckMain" {% if schedule.is_available %}checked{% endif %}>
+                  <label class="form-check-label fw-bold text-dark small" for="isAvailCheckMain">
+                    Doctor is actively accepting patient consultations
+                  </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4 py-2 shadow-sm" style="background: #0f2744; border-color: #0f2744;">
+                  Save Working Hours
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 4. LEAVE CALENDAR TAB -->
+    <!-- ============================================================ -->
+    <div class="tab-pane fade" id="pane-leaves" role="tabpanel">
       <div class="doc-table-card">
         <!-- Calendar Subtabs Header -->
         <div class="px-4 pt-3 pb-3 border-bottom bg-white d-flex">
           <div class="doc-subtabs-wrap">
             <ul class="nav nav-tabs doc-subtabs" id="calendarSubTabs" role="tablist">
-              <!-- Subtab 2.1: Regular Hours -->
+              <!-- Subtab 4.1: Add Leaves -->
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="sub-hours-btn" data-bs-toggle="tab" data-bs-target="#sub-hours-pane" type="button" role="tab">
-                  Regular OPD Working Hours
+                <button class="nav-link active" id="sub-addleave-btn" data-bs-toggle="tab" data-bs-target="#sub-addleave-pane" type="button" role="tab">
+                  Apply Leaves Calendar
                 </button>
               </li>
-              <!-- Subtab 2.2: Add Leaves -->
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="sub-addleave-btn" data-bs-toggle="tab" data-bs-target="#sub-addleave-pane" type="button" role="tab">
-                  Add Leaves Calendar
-                </button>
-              </li>
-              <!-- Subtab 2.3: Recorded Leaves -->
+              <!-- Subtab 4.2: Recorded Leaves -->
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="sub-recorded-btn" data-bs-toggle="tab" data-bs-target="#sub-recorded-pane" type="button" role="tab">
                   Recorded Leaves Table <span class="badge bg-secondary text-white rounded-pill ms-1">{{ leaves|length }}</span>
@@ -956,72 +804,13 @@
         <!-- Calendar Subtabs Content -->
         <div class="tab-content p-4" id="calendarSubTabsContent">
 
-          <!-- 2.1 REGULAR OPD WORKING HOURS -->
-          <div class="tab-pane fade show active" id="sub-hours-pane" role="tabpanel">
+          <!-- 4.1 ADD LEAVES CALENDAR -->
+          <div class="tab-pane fade show active" id="sub-addleave-pane" role="tabpanel">
             <div class="row justify-content-center">
               <div class="col-lg-8">
                 <div class="card border border-light-subtle rounded-4 p-4 shadow-sm bg-white">
                   <div class="mb-4 pb-3 border-bottom">
-                    <h5 class="fw-bold text-dark mb-1">Regular OPD Working Schedule</h5>
-                    <small class="text-muted">Configure your standard clinic timing, consultation slot intervals, and weekly off days.</small>
-                  </div>
-
-                  <form method="POST" id="docScheduleForm">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="update_schedule">
-
-                    <div class="row g-3 mb-3">
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">OPD Start Time <span class="text-danger">*</span></label>
-                        <input type="time" name="opd_start_time" class="form-control" value="{{ schedule.opd_start_time|time:'H:i' }}" required>
-                      </div>
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">OPD End Time <span class="text-danger">*</span></label>
-                        <input type="time" name="opd_end_time" class="form-control" value="{{ schedule.opd_end_time|time:'H:i' }}" required>
-                      </div>
-                    </div>
-
-                    <div class="row g-3 mb-3">
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">Slot Duration (Minutes)</label>
-                        <select name="slot_duration_minutes" class="form-select">
-                          <option value="15" {% if schedule.slot_duration_minutes == 15 %}selected{% endif %}>15 Minutes</option>
-                          <option value="20" {% if schedule.slot_duration_minutes == 20 %}selected{% endif %}>20 Minutes</option>
-                          <option value="30" {% if schedule.slot_duration_minutes == 30 %}selected{% endif %}>30 Minutes</option>
-                          <option value="45" {% if schedule.slot_duration_minutes == 45 %}selected{% endif %}>45 Minutes</option>
-                          <option value="60" {% if schedule.slot_duration_minutes == 60 %}selected{% endif %}>60 Minutes</option>
-                        </select>
-                      </div>
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-dark mb-1">Weekly Off Days</label>
-                        <input type="text" name="off_days" class="form-control" value="{{ schedule.off_days }}" placeholder="e.g. Sunday, Saturday">
-                        <small class="text-muted" style="font-size: 0.72rem;">Days when you are regularly off</small>
-                      </div>
-                    </div>
-
-                    <div class="mb-4 form-check form-switch p-3 bg-light rounded-3 border">
-                      <input class="form-check-input ms-0 me-2" type="checkbox" name="is_available" value="1" id="isAvailCheckMain" {% if schedule.is_available %}checked{% endif %}>
-                      <label class="form-check-label fw-bold text-dark small" for="isAvailCheckMain">
-                        Doctor is actively accepting patient consultations
-                      </label>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4 py-2 shadow-sm" style="background: #0f2744; border-color: #0f2744;">
-                      Save Working Hours
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 2.2 ADD LEAVES CALENDAR -->
-          <div class="tab-pane fade" id="sub-addleave-pane" role="tabpanel">
-            <div class="row justify-content-center">
-              <div class="col-lg-8">
-                <div class="card border border-light-subtle rounded-4 p-4 shadow-sm bg-white">
-                  <div class="mb-4 pb-3 border-bottom">
-                    <h5 class="fw-bold text-dark mb-1">Apply & Block Doctor Leaves</h5>
+                    <h5 class="fw-bold text-dark mb-1">Apply &amp; Block Doctor Leaves</h5>
                     <small class="text-muted">Selected leave dates will be locked so Telecallers cannot book conflicting slots.</small>
                   </div>
 
@@ -1029,6 +818,8 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" id="doc_leave_form_action" value="add_leave">
                     <input type="hidden" name="leave_id" id="doc_leave_id_input" value="">
+                    <input type="hidden" name="ref_tab" value="leaves">
+                    <input type="hidden" name="ref_subtab" value="recorded_leaves">
 
                     <div class="row g-3 mb-3">
                       <div class="col-md-6">
@@ -1089,7 +880,7 @@
                       </div>
                     </div>
 
-                    <button type="submit" class="btn btn-danger fw-bold rounded-pill px-4 py-2 shadow-sm">
+                    <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4 py-2 shadow-sm" style="background: #0f2744; border-color: #0f2744;">
                       Add Leave Date
                     </button>
                   </form>
@@ -1098,7 +889,7 @@
             </div>
           </div>
 
-          <!-- 2.3 RECORDED LEAVES TABLE -->
+          <!-- 4.2 RECORDED LEAVES TABLE -->
           <div class="tab-pane fade" id="sub-recorded-pane" role="tabpanel">
             <div class="table-responsive">
               <table class="table doc-table align-middle mb-0">
@@ -1145,6 +936,8 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="delete_leave">
                         <input type="hidden" name="leave_id" value="{{ l.pk }}">
+                        <input type="hidden" name="ref_tab" value="leaves">
+                        <input type="hidden" name="ref_subtab" value="recorded_leaves">
                         <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1">
                           Remove
                         </button>
@@ -1159,7 +952,7 @@
                     <td colspan="5" class="text-center py-5 text-muted">
                       <i class="fa-solid fa-calendar-check fs-2 text-secondary mb-2 d-block opacity-50"></i>
                       <h6 class="fw-bold text-dark mb-1">No Leaves Logged</h6>
-                      <small>Block vacation or off days using the Add Leaves calendar tab.</small>
+                      <small>Block vacation or off days using the Apply Leaves Calendar tab.</small>
                     </td>
                   </tr>
                   {% endfor %}
@@ -1168,223 +961,6 @@
             </div>
           </div>
 
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 3. COMPLETED TAB -->
-    <!-- ============================================================ -->
-    <div class="tab-pane fade" id="pane-completed" role="tabpanel">
-      <div class="doc-table-card">
-        <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-white">
-          <div>
-            <h6 class="fw-bold text-dark mb-0">Completed Consultations</h6>
-            <small class="text-muted">Appointments marked completed with clinical diagnosis and prescription notes</small>
-          </div>
-          <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-1.5 rounded-pill fw-bold">
-            {{ completed_count }} Completed
-          </span>
-        </div>
-        <div class="table-responsive">
-          <table class="table doc-table align-middle mb-0">
-            <thead class="doc-table-head">
-              <tr>
-                <th class="ps-4">Patient Name</th>
-                <th>Contact</th>
-                <th>Doctor / Department</th>
-                <th>Disease</th>
-                <th>Consultation Date</th>
-                <th>Doctor Remarks / Notes</th>
-                <th class="pe-4 text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for apt in completed_apts %}
-              <tr>
-                <td class="ps-4">
-                  <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
-                  <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
-                </td>
-                <td>
-                  <div class="fw-semibold text-dark">{{ apt.lead.mobile }}</div>
-                  {% if apt.lead.location or apt.lead.city %}
-                  <div class="small text-muted">{{ apt.lead.location|default:apt.lead.city }}</div>
-                  {% endif %}
-                </td>
-                <td>
-                  <div class="fw-semibold text-dark">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
-                  <div class="small text-muted">{{ apt.lead.custom_data.department|default:user.doctor_departments_display|striptags }}</div>
-                </td>
-                <td>
-                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
-                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
-                </td>
-                <td>
-                  <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
-                  <div class="small text-muted">{{ apt.appointment_time|time:"h:i A"|default:"Completed" }}</div>
-                </td>
-                <td style="max-width: 250px;">
-                  <span class="small text-dark text-truncate d-inline-block" style="max-width: 250px;" title="{{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:'Completed' }}">
-                    {{ apt.doctor_notes|default:apt.lead.custom_doctor_remark|default:"Completed" }}
-                  </span>
-                </td>
-                <td class="pe-4 text-end text-nowrap">
-                  <!-- View Form -->
-                  <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
-                    <i class="fa-solid fa-eye me-1"></i> View Form
-                  </a>
-
-                  <!-- Change Status Dropdown -->
-                  <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                      Status
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
-                      <li>
-                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                          Reschedule Slot
-                        </button>
-                      </li>
-                      <li>
-                        <form method="POST">
-                          {% csrf_token %}
-                          <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
-                          <input type="hidden" name="action" value="update_status">
-                          <input type="hidden" name="new_status" value="APPROVED">
-                          <input type="hidden" name="ref_tab" value="completed">
-                          <button type="submit" class="dropdown-item">
-                            Reopen (Confirmed)
-                          </button>
-                        </form>
-                      </li>
-                      <li><hr class="dropdown-divider"></li>
-                      <li>
-                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#rejectModal{{ apt.pk }}">
-                          Mark Cancelled
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-              {% include "hospital/dashboard/_doctor_apt_modals.html" with apt=apt current_subtab="completed" %}
-              {% empty %}
-              <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
-                  <i class="fa-solid fa-circle-check fs-2 text-secondary mb-2 d-block opacity-50"></i>
-                  <h6 class="fw-bold text-dark mb-1">No Completed Consultations</h6>
-                  <small>Consultations marked completed will appear in this archive.</small>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 4. CANCELLED TAB -->
-    <!-- ============================================================ -->
-    <div class="tab-pane fade" id="pane-cancelled" role="tabpanel">
-      <div class="doc-table-card">
-        <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-white">
-          <div>
-            <h6 class="fw-bold text-dark mb-0">Cancelled Appointments</h6>
-            <small class="text-muted">Appointments rejected or cancelled by doctor or patient</small>
-          </div>
-          <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-3 py-1.5 rounded-pill fw-bold">
-            {{ cancelled_count }} Cancelled
-          </span>
-        </div>
-        <div class="table-responsive">
-          <table class="table doc-table align-middle mb-0">
-            <thead class="doc-table-head">
-              <tr>
-                <th class="ps-4">Patient Name</th>
-                <th>Contact</th>
-                <th>Doctor / Department</th>
-                <th>Disease</th>
-                <th>Cancelled Slot</th>
-                <th>Cancellation Reason</th>
-                <th class="pe-4 text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for apt in cancelled_apts %}
-              <tr>
-                <td class="ps-4">
-                  <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
-                  <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
-                </td>
-                <td>
-                  <div class="fw-semibold text-dark">{{ apt.lead.mobile }}</div>
-                  {% if apt.lead.location or apt.lead.city %}
-                  <div class="small text-muted">{{ apt.lead.location|default:apt.lead.city }}</div>
-                  {% endif %}
-                </td>
-                <td>
-                  <div class="fw-semibold text-dark">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
-                  <div class="small text-muted">{{ apt.lead.custom_data.department|default:user.doctor_departments_display|striptags }}</div>
-                </td>
-                <td>
-                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
-                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:apt.lead.custom_data.medical_condition|default:"Consultation" }}</span>
-                </td>
-                <td>
-                  <div class="fw-bold text-danger">{{ apt.appointment_date|date:"d M Y" }}</div>
-                  <div class="small text-muted">{{ apt.appointment_time|time:"h:i A"|default:"Slot Cancelled" }}</div>
-                </td>
-                <td style="max-width: 250px;">
-                  <span class="small text-danger text-truncate d-inline-block" style="max-width: 250px;" title="{{ apt.doctor_notes|default:'Doctor / Clinic Unavailable' }}">
-                    <i class="fa-solid fa-circle-exclamation me-1"></i> {{ apt.doctor_notes|default:"Doctor / Clinic Unavailable" }}
-                  </span>
-                </td>
-                <td class="pe-4 text-end text-nowrap">
-                  <!-- View Form -->
-                  <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
-                    <i class="fa-solid fa-eye me-1"></i> View Form
-                  </a>
-
-                  <!-- Change Status Dropdown -->
-                  <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-light border dropdown-toggle status-select-btn shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                      Status
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3">
-                      <li>
-                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changeSlotModal{{ apt.pk }}">
-                          Reschedule Slot
-                        </button>
-                      </li>
-                      <li>
-                        <form method="POST">
-                          {% csrf_token %}
-                          <input type="hidden" name="appointment_id" value="{{ apt.pk }}">
-                          <input type="hidden" name="action" value="approve">
-                          <input type="hidden" name="ref_tab" value="cancelled">
-                          <button type="submit" class="dropdown-item">
-                            Confirm (Approve)
-                          </button>
-                        </form>
-                      </li>
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-              {% include "hospital/dashboard/_doctor_apt_modals.html" with apt=apt current_subtab="cancelled" %}
-              {% empty %}
-              <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
-                  <i class="fa-solid fa-ban fs-2 text-secondary mb-2 d-block opacity-50"></i>
-                  <h6 class="fw-bold text-dark mb-1">No Cancelled Appointments</h6>
-                  <small>No cancelled appointment records found.</small>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -1400,12 +976,15 @@
     let targetSubTab = subtabName;
 
     // Direct mapping if subtab passed as main tab
-    if (['pending', 'today', 'upcoming', 'admitted'].includes(tabName)) {
+    if (['today', 'upcoming'].includes(tabName)) {
       targetMainTab = 'appointments';
       targetSubTab = tabName;
-    } else if (['hours', 'add_leave', 'recorded_leaves'].includes(tabName)) {
-      targetMainTab = 'calendar';
-      targetSubTab = tabName;
+    } else if (tabName === 'hours') {
+      targetMainTab = 'opd-hours';
+      targetSubTab = '';
+    } else if (['leaves', 'add_leave', 'recorded_leaves'].includes(tabName)) {
+      targetMainTab = 'leaves';
+      targetSubTab = subtabName || 'recorded_leaves';
     }
 
     // 1. Activate main tab
@@ -1416,18 +995,14 @@
 
     // 2. Activate sub tab if provided
     if (targetSubTab) {
-      // Map aliases
       if (targetSubTab === 'todays') targetSubTab = 'today';
       if (targetSubTab === 'recorded') targetSubTab = 'recorded_leaves';
       if (targetSubTab === 'addleave') targetSubTab = 'add_leave';
 
       setTimeout(() => {
         let subTabBtn = null;
-        if (targetSubTab === 'pending') subTabBtn = document.getElementById('sub-pending-btn');
-        else if (targetSubTab === 'today') subTabBtn = document.getElementById('sub-today-btn');
+        if (targetSubTab === 'today') subTabBtn = document.getElementById('sub-today-btn');
         else if (targetSubTab === 'upcoming') subTabBtn = document.getElementById('sub-upcoming-btn');
-        else if (targetSubTab === 'admitted') subTabBtn = document.getElementById('sub-admitted-btn');
-        else if (targetSubTab === 'hours') subTabBtn = document.getElementById('sub-hours-btn');
         else if (targetSubTab === 'add_leave') subTabBtn = document.getElementById('sub-addleave-btn');
         else if (targetSubTab === 'recorded_leaves') subTabBtn = document.getElementById('sub-recorded-btn');
 

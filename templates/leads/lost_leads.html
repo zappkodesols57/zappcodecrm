@@ -157,10 +157,11 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="10">
-            <div class="py-5 text-center text-muted">
-              <i class="fa-solid fa-user-xmark fa-2x mb-2 text-danger opacity-50"></i>
-              <div class="fw-semibold">No lost or cancelled leads found.</div>
+          <td colspan="10" class="text-center py-5">
+            <div class="empty-state-standard py-4 text-center text-muted">
+              <i class="fa-solid fa-user-xmark fs-2 mb-2 text-danger opacity-50 d-block"></i>
+              <div class="fw-semibold fs-6 text-dark mb-1">No lost or cancelled leads found.</div>
+              <div class="small text-muted">There are currently no lost or cancelled leads in this scope.</div>
             </div>
           </td>
         </tr>

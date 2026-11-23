@@ -2185,6 +2185,7 @@ def quick_import(request):
         col_gender = find_matching_col(["gender", "sex", "m/f"])
         col_age = find_matching_col(["age", "years", "yrs"])
         col_appt_date = find_matching_col(["appointment date", "appointment_date", "appo booked date", "appo_booked_date"])
+        col_appt_time = find_matching_col(["appointment time", "appointment_time", "appo time", "appo_time", "visit time"])
 
         # Follow-ups columns (1st, 2nd, 3rd)
         col_fu1_date = find_matching_col(["first follow up date", "first followup date", "1st follow up date", "1st followup date", "calling_date_remark_1", "follow up 1 date"])
@@ -2401,6 +2402,7 @@ def quick_import(request):
             calling_time_val = clean_val_str(row.get(col_calling_time)) if col_calling_time else ""
             appt_date_raw = row.get(col_appt_date) if col_appt_date else None
             appt_date_val = parse_clean_date(appt_date_raw)
+            appt_time_val = clean_val_str(row.get(col_appt_time)) if col_appt_time else ""
 
             # Follow-ups (1, 2, 3)
             fu1_date_raw = row.get(col_fu1_date) if col_fu1_date else None
@@ -2546,6 +2548,9 @@ def quick_import(request):
                 custom_data_payload["lead_calling_time"] = calling_time_val
             if appt_date_val:
                 custom_data_payload["appo_booked_date"] = str(appt_date_val)
+                custom_data_payload["appointment_date"] = str(appt_date_val)
+            if appt_time_val:
+                custom_data_payload["appointment_time"] = appt_time_val
 
             # Follow-ups (dates & remarks stored in custom_data for fast instant rendering)
             if fu1_date:

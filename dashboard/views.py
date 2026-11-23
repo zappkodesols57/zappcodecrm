@@ -26,8 +26,8 @@ from dashboard.helpers import filter_uncontacted_leads_ids, extract_lead_followu
 # Re-export helper functions
 from dashboard.helpers import filter_uncontacted_leads_ids, extract_lead_followup_date, _get_effective_hospital
 
-# Re-export SuperAdmin / Executive Management Views
-from dashboard.superadmin_views import (
+# Re-export SuperAdmin / Executive Management Views (Independent superadmin package)
+from dashboard.superadmin import (
     superadmin_home,
     nel_card_drilldown_api,
     live_metrics_api,
@@ -37,14 +37,15 @@ from dashboard.superadmin_views import (
     placeholder_view,
 )
 
-# Re-export Academy Views
-from dashboard.academy_counselor_views import (
+# Re-export Academy Views (Independent academy package)
+from dashboard.academy import (
     academy_counselor_home,
     academy_admin_home,
 )
 
-# Re-export Hospital Telecaller Views
-from dashboard.hospital_telecaller_views import (
+# Re-export Hospital Views (Independent hospital package)
+from dashboard.hospital import (
+    hospital_admin_home,
     telecaller_home,
     telecaller_tab_data_api,
     telecaller_search,
@@ -52,10 +53,6 @@ from dashboard.hospital_telecaller_views import (
     telecaller_my_leads,
     telecaller_new_enquiries,
     telecaller_today_team_activity,
-)
-
-# Re-export Hospital Doctor Views
-from dashboard.hospital_doctor_views import (
     doctor_home,
     doctor_appointments,
     doctor_patient_review,

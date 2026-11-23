@@ -3,8 +3,88 @@
 {% block title %}Academy Dashboard{% endblock %}
 {% block extra_head %}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/@phosphor-icons/web"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/@phosphor-icons/web">  // Cascading Source Type change in Academy Admin
+  function onAcadSourceTypeChange(typeVal) {
+    const sourceSelect = document.getElementById('acadSourceSelect');
+    if (!sourceSelect) return;
+
+    const options = sourceSelect.querySelectorAll('option');
+    const paidSources = ['meta ads', 'facebook ads', 'google ads', 'instagram', 'whatsapp'];
+    const organicSources = ['google my business', 'website', 'direct walk-in'];
+
+    options.forEach(opt => {
+      if (!opt.value) {
+        opt.style.display = '';
+        return;
+      }
+      const sName = (opt.getAttribute('data-source-name') || opt.text).trim().toLowerCase();
+      let visible = false;
+      if (!typeVal) {
+        visible = paidSources.includes(sName) || organicSources.includes(sName);
+      } else if (typeVal === 'paid') {
+        visible = paidSources.includes(sName);
+      } else if (typeVal === 'organic') {
+        visible = organicSources.includes(sName);
+      }
+
+      if (visible) {
+        opt.style.display = '';
+      } else {
+        opt.style.display = 'none';
+        if (sourceSelect.value === opt.value) {
+          sourceSelect.value = '';
+        }
+      }
+    });
+  }
+
+  // Trigger on load if initial type is set
+  const initAcadType = document.getElementById('acadSourceTypeSelect');
+  if (initAcadType && initAcadType.value) {
+    onAcadSourceTypeChange(initAcadType.value);
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js">  // Cascading Source Type change in Academy Admin
+  function onAcadSourceTypeChange(typeVal) {
+    const sourceSelect = document.getElementById('acadSourceSelect');
+    if (!sourceSelect) return;
+
+    const options = sourceSelect.querySelectorAll('option');
+    const paidSources = ['meta ads', 'facebook ads', 'google ads', 'instagram', 'whatsapp'];
+    const organicSources = ['google my business', 'website', 'direct walk-in'];
+
+    options.forEach(opt => {
+      if (!opt.value) {
+        opt.style.display = '';
+        return;
+      }
+      const sName = (opt.getAttribute('data-source-name') || opt.text).trim().toLowerCase();
+      let visible = false;
+      if (!typeVal) {
+        visible = paidSources.includes(sName) || organicSources.includes(sName);
+      } else if (typeVal === 'paid') {
+        visible = paidSources.includes(sName);
+      } else if (typeVal === 'organic') {
+        visible = organicSources.includes(sName);
+      }
+
+      if (visible) {
+        opt.style.display = '';
+      } else {
+        opt.style.display = 'none';
+        if (sourceSelect.value === opt.value) {
+          sourceSelect.value = '';
+        }
+      }
+    });
+  }
+
+  // Trigger on load if initial type is set
+  const initAcadType = document.getElementById('acadSourceTypeSelect');
+  if (initAcadType && initAcadType.value) {
+    onAcadSourceTypeChange(initAcadType.value);
+  }
+</script>
 
 <style>
   :root {
@@ -347,19 +427,30 @@
           </select>
         </div>
 
-        <!-- 8. Source Filter -->
+        <!-- 8. Source Type Filter (Academy: Paid vs Organic) -->
+        <div class="col-6 col-md-3 col-xl-2">
+          <label class="filter-label">SOURCE TYPE</label>
+          <select name="source_type" id="acadSourceTypeSelect" class="form-select form-select-sm no-tom-select border"
+            style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;" onchange="onAcadSourceTypeChange(this.value)">
+            <option value="">All Types</option>
+            <option value="paid" {% if request_get.source_type == 'paid' %}selected{% endif %}>Paid</option>
+            <option value="organic" {% if request_get.source_type == 'organic' %}selected{% endif %}>Organic</option>
+          </select>
+        </div>
+
+        <!-- 9. Source Filter (Cascades with Source Type) -->
         <div class="col-6 col-md-3 col-xl-2">
           <label class="filter-label">SOURCE</label>
-          <select name="lead_source" class="form-select form-select-sm no-tom-select border"
+          <select name="lead_source" id="acadSourceSelect" class="form-select form-select-sm no-tom-select border"
             style="border-color: #E5E7EB !important; height: 36px; border-radius: 8px;">
             <option value="">All Sources</option>
             {% for src in lead_sources %}
-            <option value="{{ src.id }}" {% if request_get.lead_source == src.id|stringformat:'s' or request_get.source == src.id|stringformat:'s' or request_get.lead_source == src.name %}selected{% endif %}>{{ src.name }}</option>
+            <option value="{{ src.id }}" data-source-name="{{ src.name }}" {% if request_get.lead_source == src.id|stringformat:'s' or request_get.source == src.id|stringformat:'s' or request_get.lead_source == src.name %}selected{% endif %}>{{ src.name }}</option>
             {% endfor %}
           </select>
         </div>
 
-        <!-- 9. Campaign Filter -->
+        <!-- 10. Campaign Filter -->
         <div class="col-6 col-md-3 col-xl-2">
           <label class="filter-label">CAMPAIGN</label>
           <select name="campaign" class="form-select form-select-sm no-tom-select border"
@@ -371,7 +462,7 @@
           </select>
         </div>
 
-        <!-- 10. Search Keyword -->
+        <!-- 11. Search Keyword -->
         <div class="col-12 col-md-3 col-xl-3">
           <label class="filter-label">SEARCH (NAME, MOBILE, ID)</label>
           <input type="search" name="q" class="form-control form-control-sm border"
@@ -379,7 +470,7 @@
             placeholder="Search student name, phone..." value="{{ request_get.q }}">
         </div>
 
-        <!-- Buttons: Apply and Clear -->
+        <!-- 12. Buttons: Apply and Clear -->
         <div class="col-12 col-md-3 col-xl-3">
           <div class="d-flex gap-2">
             <button type="submit"
@@ -968,6 +1059,46 @@
         }
       }
     });
+  }
+  // Cascading Source Type change in Academy Admin
+  function onAcadSourceTypeChange(typeVal) {
+    const sourceSelect = document.getElementById('acadSourceSelect');
+    if (!sourceSelect) return;
+
+    const options = sourceSelect.querySelectorAll('option');
+    const paidSources = ['meta ads', 'facebook ads', 'google ads', 'instagram', 'whatsapp'];
+    const organicSources = ['google my business', 'website', 'direct walk-in'];
+
+    options.forEach(opt => {
+      if (!opt.value) {
+        opt.style.display = '';
+        return;
+      }
+      const sName = (opt.getAttribute('data-source-name') || opt.text).trim().toLowerCase();
+      let visible = false;
+      if (!typeVal) {
+        visible = paidSources.includes(sName) || organicSources.includes(sName);
+      } else if (typeVal === 'paid') {
+        visible = paidSources.includes(sName);
+      } else if (typeVal === 'organic') {
+        visible = organicSources.includes(sName);
+      }
+
+      if (visible) {
+        opt.style.display = '';
+      } else {
+        opt.style.display = 'none';
+        if (sourceSelect.value === opt.value) {
+          sourceSelect.value = '';
+        }
+      }
+    });
+  }
+
+  // Trigger on load if initial type is set
+  const initAcadType = document.getElementById('acadSourceTypeSelect');
+  if (initAcadType && initAcadType.value) {
+    onAcadSourceTypeChange(initAcadType.value);
   }
 </script>
 {% endblock %}
