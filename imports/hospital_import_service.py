@@ -224,22 +224,23 @@ def extract_campaign_lead_data(df, target_campaign=None, target_hospital=None):
     campaign_cols = ["campaign_name", "campaign", "form_name", "ad_name", "adset_name", "campaign_id"]
     attendant_cols = [
         "lead_attendent", "lead_attendant", "attendent", "attendant", 
-        "assigned_to", "assigned", "telecaller", "caller", "counsellor", "agent", "executive"
+        "assigned_to", "assigned", "telecaller", "caller", "counsellor", "agent", "executive",
+        "telecaller_/_lead_owner", "lead_owner", "owner"
     ]
-    doctor_cols = ["doctor", "dr_name", "consultant", "physician", "surgeon", "dr"]
+    doctor_cols = ["doctor", "dr_name", "consultant", "physician", "surgeon", "dr", "consulting_doctor"]
     gender_cols = ["gender", "sex", "m/f"]
-    address_cols = ["adderess", "address", "location", "city", "area", "town", "district"]
+    address_cols = ["adderess", "address", "location", "city", "area", "town", "district", "city_/_location"]
     due_date_cols = ["due_date", "edd", "expected_delivery_date"]
     
     # Financial & clinical bills
-    uhid_cols = ["uhid_no", "uhid_id_no", "uhid", "patient_id"]
-    opd_done_date_cols = ["opd_done_date", "visit_date", "appointment_date"]
-    pharmacy_bill_cols = ["pharmacy_bill", "pharmacy"]
-    opd_bill_cols = ["opd_bill", "opd"]
-    ipd_bill_cols = ["ipd_bill", "ipd_no", "ipd"]
-    investigation_bill_cols = ["investigation_bill", "investigation", "lab_bill"]
-    total_bill_cols = ["total_bill_amount", "total_bill", "total_amount", "total_paid", "total"]
-    final_status_cols = ["final_status", "deal_status", "status", "stage"]
+    uhid_cols = ["uhid_no", "uhid_id_no", "uhid", "patient_id", "uhid_number"]
+    opd_done_date_cols = ["opd_done_date", "visit_date", "appointment_date", "hospital_visit_date"]
+    pharmacy_bill_cols = ["pharmacy_bill", "pharmacy", "pharmacy_bill_(inr)"]
+    opd_bill_cols = ["opd_bill", "opd", "opd_bill_(inr)"]
+    ipd_bill_cols = ["ipd_bill", "ipd_no", "ipd", "ipd_bill_(inr)"]
+    investigation_bill_cols = ["investigation_bill", "investigation", "lab_bill", "investigation_bill_(inr)"]
+    total_bill_cols = ["total_bill_amount", "total_bill", "total_amount", "total_paid", "total", "total_revenue_(inr)", "total_revenue"]
+    final_status_cols = ["final_status", "deal_status", "status", "stage", "current_stage", "current_deal_status"]
     appt_status_cols = ["appointment_status", "appo_status", "booking_status"]
     dept_cols = ["department", "dept", "speciality", "specialty"]
     branch_cols = ["hospital_branch", "branch", "hospital_branch_"]

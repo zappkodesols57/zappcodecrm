@@ -222,24 +222,14 @@ def hospital_admin_home(request):
                         if d_clean and d_clean.lower() not in ['not mentioned', 'docotor', 'doctor', 'nan', 'none']:
                             raw_doc_set.add(d_clean)
 
-        # Include official records strictly relevant to this tenant
-        from leads.models import HospitalDepartment, HospitalDoctor, Campaign, LeadSource
-        for src_obj in LeadSource.objects.filter(is_active=True):
-            if src_obj.name:
-                raw_source_set.add(src_obj.name.strip())
-        if effective_hospital:
-            for dept_obj in HospitalDepartment.objects.filter(hospital=effective_hospital, is_active=True):
-                if dept_obj.name:
-                    raw_dept_set.add(dept_obj.name.strip().upper())
-            for doc_obj in HospitalDoctor.objects.filter(hospital=effective_hospital, is_active=True):
-                if doc_obj.name:
-                    raw_doc_set.add(doc_obj.name.strip().title())
-
-        # Clean case-insensitive deduplication for sources
+        # Clean case-insensitive deduplication for sources (strictly hospital leads)
         clean_sources = []
         seen_sources = set()
         for s in sorted(list(raw_source_set)):
             s_clean = s.strip()
+            # Exclude non-hospital / demo sources
+            if s_clean.lower() in ['college visit', 'chatgpt referral', 'cold call', 'cbsh', 'exhibition', 'event', 'employee referral']:
+                continue
             if s_clean and s_clean.lower() not in seen_sources:
                 seen_sources.add(s_clean.lower())
                 clean_sources.append(s_clean)
@@ -586,19 +576,19 @@ def hospital_admin_home(request):
     
     # 1. Total Leads: All leads count in filtered date range / filters with Fresh vs Assigned breakdown
     total_leads_count = hospital_all_leads.count()
-    fresh_leads_count = hospital_all_leads.filter(stage__name='Fresh').count()
+    fresh_leads_count = hospital_all_leads.filter(stage__name__in=['Fresh', 'New']).count()
     assigned_leads_count = hospital_all_leads.filter(stage__name='Assigned').count()
 
     # 2. Call Not Done: Leads with UNCONTACTED deal status or in Fresh/Assigned stage without calling notes
     cnd_qs = hospital_all_leads.filter(
-        Q(stage__name__in=['Fresh', 'Assigned']) |
+        Q(stage__name__in=['Fresh', 'Assigned', 'New']) |
         Q(deal_status__in=[DealStatus.UNCONTACTED, DealStatus.OPEN, 'OPEN', 'New', 'Uncontacted'])
     ).exclude(
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
         Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done'])
     )
     call_not_done_count = cnd_qs.count()
-    cnd_fresh_count = cnd_qs.filter(stage__name='Fresh').count()
+    cnd_fresh_count = cnd_qs.filter(stage__name__in=['Fresh', 'New']).count()
     cnd_assigned_count = cnd_qs.filter(stage__name='Assigned').count()
 
     # 3. Appointments Booked: Total cumulative appointments ever booked (Active Confirmed + Converted to Visit/Payment)
