@@ -591,8 +591,8 @@ def hospital_admin_home(request):
 
     # 2. Call Not Done: Leads with UNCONTACTED deal status or in Fresh/Assigned stage without calling notes
     cnd_qs = hospital_all_leads.filter(
-        Q(deal_status=DealStatus.UNCONTACTED) |
-        (Q(stage__name__in=['Fresh', 'Assigned']) & Q(deal_status__in=[DealStatus.OPEN, 'OPEN', 'New']))
+        Q(stage__name__in=['Fresh', 'Assigned']) |
+        Q(deal_status__in=[DealStatus.UNCONTACTED, DealStatus.OPEN, 'OPEN', 'New', 'Uncontacted'])
     ).exclude(
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
         Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done'])
@@ -1227,8 +1227,9 @@ def nel_card_drilldown_api(request):
         base_card_qs = hospital_qs
     elif card_type == 'call_not_done':
         uncontacted_q = (
+            Q(stage__name__in=['Fresh', 'Assigned']) |
             Q(stage__name__icontains="new") |
-            Q(deal_status="OPEN", followup_count=0) |
+            Q(deal_status__in=[DealStatus.UNCONTACTED, DealStatus.OPEN, 'OPEN', 'New', 'Uncontacted']) |
             Q(temperature="UNCONTACTED")
         )
         if user.role == User.Role.LEAD_ATTENDENT:
