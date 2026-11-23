@@ -1694,13 +1694,17 @@ Analytics Dashboard{% endif %}{% endblock %}
         const sourceSelect = document.getElementById('filterSourceSelect');
         const campaignSelect = document.getElementById('filterCampaignSelect');
 
-        // Exact clean sets as requested:
+        // Clean source classifications:
         // Paid: Meta Ads, Facebook Ads, Google Ads, Instagram, WhatsApp
-        // Organic: Google My Business, Website, Direct Walk-in
-        // Other: Just Dial, Practo, Referral
-        const paidSources = ['meta ads', 'facebook ads', 'google ads', 'instagram', 'whatsapp'];
-        const organicSources = ['google my business', 'website', 'direct walk-in'];
-        const otherSources = ['just dial', 'practo', 'referral'];
+        // Organic: Google My Business, Website, Direct Walk-in, Google Organic
+        // Other: Just Dial, Justdial, Practo, Referral, Offline
+        const paidSources = ['meta ads', 'facebook ads', 'google ads', 'instagram', 'whatsapp', 'facebook'];
+        const organicSources = ['google my business', 'website', 'direct walk-in', 'google organic', 'walk-in', 'walk in'];
+        const otherSources = ['just dial', 'justdial', 'practo', 'referral', 'offline', 'other'];
+
+        // Clean campaign classifications:
+        const organicCampaigns = ['nelson website', 'website appointment form', 'google my business organic', 'dr. nelsa chatbot'];
+        const otherCampaigns = ['justdial direct', 'practo direct consult', 'referral program'];
 
         if (sourceSelect) {
             const options = sourceSelect.querySelectorAll('option');
@@ -1713,13 +1717,13 @@ Analytics Dashboard{% endif %}{% endblock %}
                 let visible = false;
 
                 if (!typeVal) {
-                    visible = paidSources.includes(sName) || organicSources.includes(sName) || otherSources.includes(sName);
+                    visible = true;
                 } else if (typeVal === 'paid') {
-                    visible = paidSources.includes(sName);
+                    visible = paidSources.some(p => sName.includes(p) || p.includes(sName));
                 } else if (typeVal === 'organic') {
-                    visible = organicSources.includes(sName);
+                    visible = organicSources.some(o => sName.includes(o) || o.includes(sName));
                 } else if (typeVal === 'other') {
-                    visible = otherSources.includes(sName);
+                    visible = otherSources.some(ot => sName.includes(ot) || ot.includes(sName)) || (!paidSources.some(p => sName.includes(p)) && !organicSources.some(o => sName.includes(o)));
                 }
 
                 if (visible) {
@@ -1734,20 +1738,48 @@ Analytics Dashboard{% endif %}{% endblock %}
         }
 
         // Cascading with Campaign dropdown:
-        // - Paid: Show actual Ad campaigns
-        // - Organic: Disable or hide ad campaigns (since organic has no ad campaigns)
-        // - Other: Disable or hide ad campaigns
+        // - Paid: Show Paid / Meta / Google ad campaigns
+        // - Organic: Show Organic campaigns (Nelson Website, Google My Business Organic)
+        // - Other: Show Other channel campaigns (Justdial, Practo)
         if (campaignSelect) {
             const campOptions = campaignSelect.querySelectorAll('option');
-            if (typeVal === 'organic' || typeVal === 'other') {
-                campaignSelect.value = '';
+            let hasVisible = false;
+
+            campOptions.forEach(opt => {
+                if (!opt.value) {
+                    opt.style.display = '';
+                    return;
+                }
+                const cName = (opt.getAttribute('data-campaign-name') || opt.value).trim().toLowerCase();
+                let visible = false;
+
+                if (!typeVal) {
+                    visible = true;
+                } else if (typeVal === 'paid') {
+                    visible = !organicCampaigns.some(oc => cName === oc || cName.includes(oc)) && !otherCampaigns.some(ot => cName === ot || cName.includes(ot));
+                } else if (typeVal === 'organic') {
+                    visible = organicCampaigns.some(oc => cName === oc || cName.includes(oc));
+                } else if (typeVal === 'other') {
+                    visible = otherCampaigns.some(ot => cName === ot || cName.includes(ot));
+                }
+
+                if (visible) {
+                    opt.style.display = '';
+                    hasVisible = true;
+                } else {
+                    opt.style.display = 'none';
+                    if (campaignSelect.value === opt.value) {
+                        campaignSelect.value = '';
+                    }
+                }
+            });
+
+            if (!hasVisible && typeVal) {
                 campaignSelect.disabled = true;
-                campaignSelect.style.backgroundColor = '#f1f5f9';
-                campaignSelect.title = 'Campaigns apply only to Paid Leads';
+                campaignSelect.style.backgroundColor = '#f8fafc';
             } else {
                 campaignSelect.disabled = false;
                 campaignSelect.style.backgroundColor = '';
-                campaignSelect.title = '';
             }
         }
     }
