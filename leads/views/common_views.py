@@ -2452,6 +2452,17 @@ def lost_leads(request):
     date_scoped_lost = leads
     campaign_breakdown = get_campaign_breakdown_stats(leads, date_scoped_lost)
 
+    # Fetch employees/telecallers and pipeline stages for bulk actions
+    employees = User.objects.filter(is_active=True).exclude(role__in=[User.Role.DOCTOR])
+    if business:
+        employees = employees.filter(hospital=business)
+    else:
+        employees = employees.filter(role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.TELECALLER, User.Role.COUNSELOR])
+
+    bulk_stages = LeadStage.objects.filter(is_active=True)
+    if business:
+        bulk_stages = bulk_stages.filter(Q(hospital=business) | Q(hospital__isnull=True))
+
     context = {
         "active": "lost_leads",
         "page_obj": page_obj,
@@ -2465,6 +2476,8 @@ def lost_leads(request):
         "date_from_val": date_from or "",
         "date_to_val": date_to or "",
         "query_params": query_params.urlencode(),
+        "employees": employees,
+        "bulk_stages": bulk_stages,
     }
     return render(request, "leads/lost_leads.html", context)
 
@@ -5116,15 +5129,15 @@ def bulk_action(request):
             updated_count += 1
             
         messages.success(request, f"🎉 {updated_count} lead(s) updated to stage '{target_stage_name}'.")
-        return redirect("leads:lead_list")
+        return redirect(request.META.get("HTTP_REFERER") or "leads:lead_list")
 
     elif action == "archive":
         if not _can_archive_lead(request.user):
             messages.error(request, "Only Business Admins and Super Admins can archive leads.")
-            return redirect("leads:lead_list")
+            return redirect(request.META.get("HTTP_REFERER") or "leads:lead_list")
         leads.update(is_archived=True)
         messages.success(request, f"{leads.count()} lead(s) archived successfully.")
-    return redirect("leads:lead_list")
+    return redirect(request.META.get("HTTP_REFERER") or "leads:lead_list")
 
 
 

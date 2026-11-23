@@ -391,61 +391,76 @@ Analytics Dashboard{% endif %}{% endblock %}
         background: #eef2ff;
     }
 
-    /* Admin Custom Date Range Modal Calendar Styles */
+    /* Admin Custom Date Range Modal Calendar Styles (Aligned exactly with Academy Counselor) */
     .cal-nav-btn {
-        width: 30px;
-        height: 30px;
-        border-radius: 6px;
-        border: 1px solid #E5E7EB;
-        background: #ffffff;
-        color: #052042;
+        width: 28px;
+        height: 28px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
         cursor: pointer;
+        font-size: 0.75rem;
         transition: all 0.15s ease;
     }
     .cal-nav-btn:hover {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
+        background: #e2e8f0;
+        color: #0f172a;
     }
-
     .cal-day-cell {
-        aspect-ratio: 1;
+        height: 34px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.8rem;
-        font-weight: 600;
         cursor: pointer;
-        user-select: none;
-        border-radius: 6px;
-        margin: 2px;
+        font-weight: 500;
+        font-size: 0.82rem;
         color: #1e293b;
-        transition: all 0.15s ease;
+        border-radius: 6px;
+        margin: 1px 0;
+        transition: background 0.12s ease, color 0.12s ease;
     }
-    .cal-day-cell:hover:not(.cal-future):not(.cal-empty) {
-        background-color: #e2e8f0;
+    .cal-day-cell:hover:not(.cal-day-future):not(.cal-day-start):not(.cal-day-end) {
+        background-color: #f1f5f9;
     }
-    .cal-day-cell.cal-empty {
-        cursor: default;
-        background: transparent !important;
+    .cal-day-empty {
+        height: 34px;
+        visibility: hidden;
     }
-    .cal-day-cell.cal-future {
+    .cal-day-future {
         color: #cbd5e1 !important;
         cursor: not-allowed !important;
         background: transparent !important;
     }
-    .cal-day-cell.cal-selected-start,
-    .cal-day-cell.cal-selected-end {
+    .cal-day-start {
         background-color: #052042 !important;
         color: #ffffff !important;
         font-weight: 700 !important;
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+    .cal-day-end {
+        background-color: #052042 !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+    }
+    .cal-day-start.cal-day-end {
         border-radius: 6px !important;
     }
-    .cal-day-cell.cal-in-range {
-        background-color: #e0e7ff !important;
-        color: #052042 !important;
+    .cal-day-in-range {
+        background-color: #dbeafe !important;
+        color: #1e3a8a !important;
+        font-weight: 600 !important;
+        border-radius: 0 !important;
+    }
+    .cal-day-hover-range {
+        background-color: #eff6ff !important;
+        color: #1e40af !important;
         border-radius: 0 !important;
     }
 
@@ -730,16 +745,17 @@ Analytics Dashboard{% endif %}{% endblock %}
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-3">
-        <!-- Direct Inputs for From and To Date -->
-        <div class="row g-2 mb-2">
-          <div class="col-6">
-            <label class="form-label mb-1" style="font-size: 0.72rem; font-weight: 700; color: #052042;">FROM DATE</label>
-            <input type="date" id="adminModalInputFrom" class="form-control form-control-sm border" style="font-size: 0.78rem; height: 32px; border-radius: 6px;" value="{{ custom_start }}" onchange="onAdminHomeInputDateChange('from', this.value)">
-          </div>
-          <div class="col-6">
-            <label class="form-label mb-1" style="font-size: 0.72rem; font-weight: 700; color: #052042;">TO DATE</label>
-            <input type="date" id="adminModalInputTo" class="form-control form-control-sm border" style="font-size: 0.78rem; height: 32px; border-radius: 6px;" value="{{ custom_end }}" onchange="onAdminHomeInputDateChange('to', this.value)">
-          </div>
+        <!-- 2 Selection Mode Tabs: From Date & To Date -->
+        <div class="btn-group w-100 mb-2.5" role="group">
+          <input type="radio" class="btn-check" name="admin_home_modal_mode" id="admin_home_modal_pick_from" value="from" checked onchange="setAdminHomeCalMode('from')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="admin_home_modal_pick_from" style="font-size: 0.78rem;">
+            1. From Date
+          </label>
+
+          <input type="radio" class="btn-check" name="admin_home_modal_mode" id="admin_home_modal_pick_to" value="to" onchange="setAdminHomeCalMode('to')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="admin_home_modal_pick_to" style="font-size: 0.78rem;">
+            2. To Date
+          </label>
         </div>
 
         <div class="cal-picker-wrap mb-2">
@@ -762,26 +778,26 @@ Analytics Dashboard{% endif %}{% endblock %}
         </div>
 
         <small class="text-muted d-block text-center mb-2" style="font-size: 0.72rem;" id="adminHomeModalHelper">
-          Click on calendar dates or enter dates directly above.
+          Click 1st date for <strong>From</strong>, then click 2nd date for <strong>To</strong>.
         </small>
 
         <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-1">
           <div>
             <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">From Date</span>
             <strong class="text-dark" id="adminHomeModalDispFrom" style="font-size: 0.85rem;">
-              {% if custom_start %}{{ custom_start|slice:"8:10" }}-{{ custom_start|slice:"5:7" }}-{{ custom_start|slice:"0:4" }}{% else %}(Open / Oldest){% endif %}
+              {% if custom_start %}{{ custom_start|slice:"8:10" }}-{{ custom_start|slice:"5:7" }}-{{ custom_start|slice:"0:4" }}{% else %}(Select Date){% endif %}
             </strong>
           </div>
           <div class="text-muted">➔</div>
           <div class="text-end">
             <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">To Date</span>
             <strong class="text-dark" id="adminHomeModalDispTo" style="font-size: 0.85rem;">
-              {% if custom_end %}{{ custom_end|slice:"8:10" }}-{{ custom_end|slice:"5:7" }}-{{ custom_end|slice:"0:4" }}{% else %}Today{% endif %}
+              {% if custom_end %}{{ custom_end|slice:"8:10" }}-{{ custom_end|slice:"5:7" }}-{{ custom_end|slice:"0:4" }}{% else %}(Select Date){% endif %}
             </strong>
           </div>
         </div>
       </div>
-      <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-between">
+      <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-center align-items-center gap-2">
         <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1" onclick="clearAdminHomeDateRange()">Clear</button>
         <button type="button" class="btn btn-sm btn-primary px-3 py-1 fw-semibold" style="background-color: #052042; border-color: #052042;" onclick="applyAdminHomeDateRange()">Apply Range</button>
       </div>
@@ -1514,6 +1530,15 @@ Analytics Dashboard{% endif %}{% endblock %}
         const toRadio = document.getElementById('admin_home_modal_pick_to');
         if (mode === 'from' && fromRadio) fromRadio.checked = true;
         if (mode === 'to' && toRadio) toRadio.checked = true;
+        const helper = document.getElementById('adminHomeModalHelper');
+        if (helper) {
+            if (mode === 'from') {
+                helper.innerHTML = 'Click calendar date to set <strong>From Date</strong>.';
+            } else {
+                helper.innerHTML = 'Click calendar date to set <strong>To Date</strong>.';
+            }
+        }
+        renderAdminHomeCalendar();
     }
 
     function navAdminHomeCalMonth(delta) {
@@ -1551,19 +1576,35 @@ Analytics Dashboard{% endif %}{% endblock %}
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         title.textContent = monthNames[adminHomeCalState.viewMonth] + " " + adminHomeCalState.viewYear;
 
-        if (dispFrom) dispFrom.textContent = adminHomeCalState.from ? formatAdminHomeDate(adminHomeCalState.from) : '(Open / Oldest)';
-        if (dispTo) dispTo.textContent = adminHomeCalState.to ? formatAdminHomeDate(adminHomeCalState.to) : 'Today';
+        if (dispFrom) dispFrom.textContent = adminHomeCalState.from ? formatAdminHomeDate(adminHomeCalState.from) : '(Select Date)';
+        if (dispTo) dispTo.textContent = adminHomeCalState.to ? formatAdminHomeDate(adminHomeCalState.to) : (adminHomeCalState.from ? '(Select To Date)' : '(Select Date)');
+
+        const rFrom = document.getElementById('admin_home_modal_pick_from');
+        const rTo = document.getElementById('admin_home_modal_pick_to');
+        if (adminHomeCalState.mode === 'from') {
+            if (rFrom) rFrom.checked = true;
+        } else {
+            if (rTo) rTo.checked = true;
+        }
 
         grid.innerHTML = '';
         const firstDay = new Date(adminHomeCalState.viewYear, adminHomeCalState.viewMonth, 1).getDay();
         const daysInMonth = new Date(adminHomeCalState.viewYear, adminHomeCalState.viewMonth + 1, 0).getDate();
-        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
 
         for (let i = 0; i < firstDay; i++) {
             const empty = document.createElement('div');
-            empty.className = 'cal-day-cell cal-empty';
+            empty.className = 'cal-day-empty';
             grid.appendChild(empty);
         }
+
+        const fromVal = adminHomeCalState.from;
+        const toVal = adminHomeCalState.to;
+        const hoverVal = adminHomeCalState.hoverDate;
 
         for (let day = 1; day <= daysInMonth; day++) {
             const mStr = String(adminHomeCalState.viewMonth + 1).padStart(2, '0');
@@ -1575,17 +1616,12 @@ Analytics Dashboard{% endif %}{% endblock %}
             cell.textContent = day;
 
             if (iso > todayStr) {
-                cell.classList.add('cal-future');
+                cell.classList.add('cal-day-future');
             } else {
-                if (iso === adminHomeCalState.from) cell.classList.add('cal-selected-start');
-                if (iso === adminHomeCalState.to) cell.classList.add('cal-selected-end');
-
-                const effectiveTo = adminHomeCalState.to || (!adminHomeCalState.to && adminHomeCalState.hoverDate && adminHomeCalState.hoverDate >= adminHomeCalState.from ? adminHomeCalState.hoverDate : null);
-                if (adminHomeCalState.from && effectiveTo && iso > adminHomeCalState.from && iso < effectiveTo) {
-                    cell.classList.add('cal-in-range');
-                }
-
-                cell.onclick = () => onAdminHomeDateClick(iso);
+                cell.onclick = (e) => {
+                    e.stopPropagation();
+                    onAdminHomeDateClick(iso);
+                };
                 cell.onmouseenter = () => {
                     if (adminHomeCalState.from && !adminHomeCalState.to) {
                         adminHomeCalState.hoverDate = iso;
@@ -1593,63 +1629,64 @@ Analytics Dashboard{% endif %}{% endblock %}
                     }
                 };
             }
+
+            // Range highlighting exactly matching Academy Counselor
+            if (fromVal && toVal) {
+                if (iso === fromVal && iso === toVal) {
+                    cell.classList.add('cal-day-start', 'cal-day-end');
+                } else if (iso === fromVal) {
+                    cell.classList.add('cal-day-start');
+                } else if (iso === toVal) {
+                    cell.classList.add('cal-day-end');
+                } else if (iso > fromVal && iso < toVal) {
+                    cell.classList.add('cal-day-in-range');
+                }
+            } else if (fromVal && !toVal) {
+                if (iso === fromVal) {
+                    cell.classList.add('cal-day-start', 'cal-day-end');
+                } else if (hoverVal && iso > fromVal && iso <= hoverVal) {
+                    cell.classList.add('cal-day-hover-range');
+                }
+            } else if (!fromVal && toVal) {
+                if (iso === toVal) {
+                    cell.classList.add('cal-day-start', 'cal-day-end');
+                }
+            }
+
             grid.appendChild(cell);
         }
     }
 
     function onAdminHomeDateClick(iso) {
-        // Simple, predictable 2-click selection:
-        if (!adminHomeCalState.from) {
-            // First click sets FROM
+        if (adminHomeCalState.mode === 'from') {
             adminHomeCalState.from = iso;
-            adminHomeCalState.to = '';
-        } else if (!adminHomeCalState.to) {
-            // Second click sets TO
-            if (iso < adminHomeCalState.from) {
-                adminHomeCalState.to = adminHomeCalState.from;
-                adminHomeCalState.from = iso;
-            } else {
-                adminHomeCalState.to = iso;
-            }
+            adminHomeCalState.to = ''; // reset to for fresh selection
+            adminHomeCalState.mode = 'to'; // automatically advance to pick To Date
         } else {
-            // Third click resets and starts new range with clicked date as FROM
-            adminHomeCalState.from = iso;
-            adminHomeCalState.to = '';
+            if (!adminHomeCalState.from) {
+                adminHomeCalState.from = iso;
+                adminHomeCalState.mode = 'to';
+            } else {
+                if (iso < adminHomeCalState.from) {
+                    adminHomeCalState.to = adminHomeCalState.from;
+                    adminHomeCalState.from = iso;
+                } else {
+                    adminHomeCalState.to = iso;
+                }
+                adminHomeCalState.mode = 'from';
+            }
         }
         adminHomeCalState.hoverDate = null;
 
-        // Sync inputs
-        const inputFrom = document.getElementById('adminModalInputFrom');
-        const inputTo = document.getElementById('adminModalInputTo');
-        if (inputFrom) inputFrom.value = adminHomeCalState.from || '';
-        if (inputTo) inputTo.value = adminHomeCalState.to || '';
-
-        renderAdminHomeCalendar();
-    }
-
-    function onAdminHomeInputDateChange(field, val) {
-        if (field === 'from') {
-            adminHomeCalState.from = val;
-            if (val && adminHomeCalState.to && adminHomeCalState.to < val) {
-                adminHomeCalState.to = val;
-                const inputTo = document.getElementById('adminModalInputTo');
-                if (inputTo) inputTo.value = val;
-            }
-        } else if (field === 'to') {
-            adminHomeCalState.to = val;
-            if (val && adminHomeCalState.from && adminHomeCalState.from > val) {
-                adminHomeCalState.from = val;
-                const inputFrom = document.getElementById('adminModalInputFrom');
-                if (inputFrom) inputFrom.value = val;
+        const helper = document.getElementById('adminHomeModalHelper');
+        if (helper) {
+            if (adminHomeCalState.from && adminHomeCalState.to) {
+                helper.innerHTML = '<span class="text-success fw-bold">✓ Range selected! Click "Apply Range" to filter.</span>';
+            } else {
+                helper.innerHTML = 'Now click calendar date for <strong>To Date</strong>.';
             }
         }
-        if (val) {
-            const parts = val.split('-');
-            if (parts.length === 3) {
-                adminHomeCalState.viewYear = parseInt(parts[0]);
-                adminHomeCalState.viewMonth = parseInt(parts[1]) - 1;
-            }
-        }
+
         renderAdminHomeCalendar();
     }
 
@@ -1736,12 +1773,6 @@ Analytics Dashboard{% endif %}{% endblock %}
                 adminHomeCalState.to = endInput.value;
             }
 
-            // Sync visual inputs
-            const inputFrom = document.getElementById('adminModalInputFrom');
-            const inputTo = document.getElementById('adminModalInputTo');
-            if (inputFrom) inputFrom.value = adminHomeCalState.from || '';
-            if (inputTo) inputTo.value = adminHomeCalState.to || '';
-
             // If a 'from' date exists, focus calendar month to that year & month
             if (adminHomeCalState.from) {
                 const parts = adminHomeCalState.from.split('-');
@@ -1750,6 +1781,7 @@ Analytics Dashboard{% endif %}{% endblock %}
                     adminHomeCalState.viewMonth = parseInt(parts[1]) - 1;
                 }
             }
+            adminHomeCalState.mode = (adminHomeCalState.from && !adminHomeCalState.to) ? 'to' : 'from';
 
             renderAdminHomeCalendar();
             const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
@@ -1773,11 +1805,8 @@ Analytics Dashboard{% endif %}{% endblock %}
     function clearAdminHomeDateRange() {
         adminHomeCalState.from = '';
         adminHomeCalState.to = '';
+        adminHomeCalState.mode = 'from';
         adminHomeCalState.hoverDate = null;
-        const inputFrom = document.getElementById('adminModalInputFrom');
-        const inputTo = document.getElementById('adminModalInputTo');
-        if (inputFrom) inputFrom.value = '';
-        if (inputTo) inputTo.value = '';
         renderAdminHomeCalendar();
         const startInput = document.getElementById('filterStartDate');
         const endInput = document.getElementById('filterEndDate');
@@ -1793,8 +1822,17 @@ Analytics Dashboard{% endif %}{% endblock %}
         const startInput = document.getElementById('filterStartDate');
         const endInput = document.getElementById('filterEndDate');
         const select = document.getElementById('formTimeFilterSelect');
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+
         if (startInput) startInput.value = adminHomeCalState.from || '';
-        if (endInput) endInput.value = adminHomeCalState.to || '';
+        // If user picked From date but did not pick To date before applying, default To date to Today
+        if (endInput) {
+            endInput.value = adminHomeCalState.to || (adminHomeCalState.from ? todayStr : '');
+        }
         if (select) select.value = 'custom';
         const form = document.getElementById('interactiveFilterForm');
         if (form) form.submit();
