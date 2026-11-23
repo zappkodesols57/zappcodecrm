@@ -584,34 +584,56 @@ def hospital_admin_home(request):
     fresh_leads_count = hospital_all_leads.filter(stage__name__in=['Fresh', 'New']).count()
     assigned_leads_count = hospital_all_leads.filter(stage__name='Assigned').count()
 
-    # 2. Call Not Done: Leads with UNCONTACTED deal status or in Fresh/Assigned stage without calling notes
+    # 2. Call Not Done: Leads strictly not yet contacted/paid/lost with exact Fresh & Assigned breakdown
     cnd_qs = hospital_all_leads.filter(
         Q(stage__name__in=['Fresh', 'Assigned', 'New']) |
-        Q(deal_status__in=[DealStatus.UNCONTACTED, DealStatus.OPEN, 'OPEN', 'New', 'Uncontacted'])
+        Q(deal_status__in=[DealStatus.UNCONTACTED, 'UNCONTACTED', 'New', 'Uncontacted'])
     ).exclude(
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
-        Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done'])
+        Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done', 'Lost'])
     )
-    call_not_done_count = cnd_qs.count()
     cnd_fresh_count = cnd_qs.filter(stage__name__in=['Fresh', 'New']).count()
     cnd_assigned_count = cnd_qs.filter(stage__name='Assigned').count()
+    # Ensure call_not_done_count matches the sum of its fresh & assigned breakdown
+    call_not_done_count = cnd_fresh_count + cnd_assigned_count
 
-    # 3. Appointments Booked: Total cumulative appointments ever booked (Active Confirmed + Converted to Visit/Payment)
+    # 3. Appointments Booked: Total distinct leads with appointments booked (Active vs Completed)
+    # Active: Scheduled / Confirmed appointments awaiting visit
     appt_active_qs = hospital_all_leads.filter(
         Q(stage__name__in=['Appointment - Confirmed', 'Booking Confirmed', 'Appointment Confirmed']) |
         Q(custom_data__appointment_status__iexact='YES') |
         Q(custom_data__appointment_status__icontains='booked') |
         Q(custom_data__appointment_status__icontains='confirmed') |
         Q(custom_data__appointment_confirmed_at__isnull=False)
-    )
-    appt_completed_qs = hospital_all_leads.filter(
-        Q(stage__name__in=['OPD Done', 'Payment Done', 'IPD Done']) |
+    ).exclude(
+        Q(stage__name__in=['OPD Done', 'Payment Done', 'IPD Done', 'Cancelled', 'Lost']) |
+        Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
         Q(custom_data__appointment_status__icontains='done') |
         Q(custom_data__appointment_status__icontains='completed')
-    )
-    appointment_active_count = appt_active_qs.distinct().count()
-    appointment_completed_count = appt_completed_qs.distinct().count()
-    appointment_booked_count = appointment_active_count + appointment_completed_count
+    ).distinct()
+
+    # Completed: Appointments that converted to Hospital visit / Payment Done
+    appt_completed_qs = hospital_all_leads.filter(
+        Q(stage__name__in=['OPD Done', 'Payment Done', 'IPD Done']) |
+        Q(deal_status=DealStatus.WON) |
+        Q(custom_data__appointment_status__icontains='done') |
+        Q(custom_data__appointment_status__icontains='completed')
+    ).filter(
+        Q(custom_data__appointment_date__isnull=False) |
+        Q(custom_data__appo_booked_date__isnull=False) |
+        Q(custom_data__appointment_status__icontains='booked') |
+        Q(custom_data__appointment_status__icontains='confirm') |
+        Q(stage__name__in=['OPD Done', 'Payment Done', 'IPD Done'])
+    ).distinct()
+
+    appointment_active_count = appt_active_qs.count()
+    appointment_completed_count = appt_completed_qs.count()
+    # Total distinct appointment leads (never exceeds total leads)
+    all_appt_leads = hospital_all_leads.filter(
+        Q(id__in=appt_active_qs.values_list('id', flat=True)) |
+        Q(id__in=appt_completed_qs.values_list('id', flat=True))
+    ).distinct()
+    appointment_booked_count = all_appt_leads.count()
 
     # 4. Walk-in Leads: Leads where source or lead type is Walk-in
     walkin_qs = hospital_all_leads.filter(
@@ -646,15 +668,18 @@ def hospital_admin_home(request):
                 Q(custom_data__appointment_status__icontains='schedul')
             ).count()
 
-    # 6. Admitted Patients: Count of admitted patients in date range
+    # 6. Admitted Patients: Count of IPD admitted patients (either via Admission model or IPD bill / stage)
     admitted_qs = hospital_all_leads.filter(
         Q(admission_status__in=['ADMISSION_DONE', 'ADMITTED', 'WON']) |
         Q(custom_data__admission_status__icontains='admit') |
         Q(custom_data__appointment_status__icontains='admit') |
         Q(stage__name__icontains='admit') |
-        Q(admission__isnull=False)
-    )
-    admitted_patients_count = admitted_qs.distinct().count()
+        Q(stage__name__icontains='ipd') |
+        Q(admission__isnull=False) |
+        Q(custom_data__ipd_bill__gt=0) |
+        Q(custom_data__ipd_no__isnull=False)
+    ).distinct()
+    admitted_patients_count = admitted_qs.count()
 
     # 7. Won Leads: Realized paid patients with OPD & IPD breakdown
     won_leads_count = 0
