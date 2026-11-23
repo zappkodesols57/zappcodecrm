@@ -168,7 +168,7 @@ def hospital_admin_home(request):
     # Dynamic filter caches strictly for this business
     from django.core.cache import cache
     cache_scope = f"{selected_business_id or 'all'}_{industry_filter or 'all'}"
-    cache_key = f"dash_filters_v7_{cache_scope}"
+    cache_key = f"dash_filters_v8_{cache_scope}"
     filter_cache_data = cache.get(cache_key)
 
     if not filter_cache_data:
@@ -238,6 +238,10 @@ def hospital_admin_home(request):
             if s_clean and s_clean.lower() not in seen_sources:
                 seen_sources.add(s_clean.lower())
                 clean_sources.append(s_clean)
+
+        hospital_core_campaigns = ['Nelson Website', 'Google My Business Organic', 'Dr. Nelsa Chatbot']
+        for h_camp in hospital_core_campaigns:
+            raw_campaign_set.add(h_camp)
 
         # Clean case-insensitive deduplication for campaigns
         clean_campaigns = []
@@ -584,17 +588,20 @@ def hospital_admin_home(request):
     fresh_leads_count = hospital_all_leads.filter(stage__name__in=['Fresh', 'New']).count()
     assigned_leads_count = hospital_all_leads.filter(stage__name='Assigned').count()
 
-    # 2. Call Not Done: Leads strictly not yet contacted/paid/lost with exact Fresh & Assigned breakdown
+    # 2. Call Not Done: Strictly uncontacted leads (no calling date, no follow-up remarks, no appointment booking)
     cnd_qs = hospital_all_leads.filter(
-        Q(stage__name__in=['Fresh', 'Assigned', 'New']) |
+        Q(stage__name__in=['Fresh', 'New', 'Uncontacted']) |
         Q(deal_status__in=[DealStatus.UNCONTACTED, 'UNCONTACTED', 'New', 'Uncontacted'])
     ).exclude(
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
-        Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done', 'Lost'])
+        Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done', 'Lost', 'Assigned']) |
+        Q(custom_data__first_calling_date__isnull=False) |
+        Q(custom_data__follow_up_1_remark__isnull=False) |
+        Q(custom_data__calling_remark_1__isnull=False) |
+        Q(custom_data__appointment_status__icontains='Book')
     )
     cnd_fresh_count = cnd_qs.filter(stage__name__in=['Fresh', 'New']).count()
-    cnd_assigned_count = cnd_qs.filter(stage__name='Assigned').count()
-    # Ensure call_not_done_count matches the sum of its fresh & assigned breakdown
+    cnd_assigned_count = cnd_qs.filter(stage__name='Uncontacted').count()
     call_not_done_count = cnd_fresh_count + cnd_assigned_count
 
     # 3. Appointments Booked: Total distinct leads with appointments booked (Active vs Completed)
@@ -681,18 +688,22 @@ def hospital_admin_home(request):
     ).distinct()
     admitted_patients_count = admitted_qs.count()
 
-    # 7. Won Leads: Realized paid patients with OPD & IPD breakdown
+    # 7. Won Leads & Complete Revenue Breakdown (OPD, IPD, Pharmacy, Investigation)
     won_leads_count = 0
     won_opd_count = 0
     won_ipd_count = 0
     total_revenue = 0.0
     opd_revenue = 0.0
     ipd_revenue = 0.0
+    pharmacy_revenue = 0.0
+    investigation_revenue = 0.0
 
     for l in hospital_all_leads:
         cd = l.custom_data or {}
         opd_b = 0.0
         ipd_b = 0.0
+        pharm_b = 0.0
+        inv_b = 0.0
         tot_p = 0.0
         try:
             opd_b = float(cd.get('opd_bill') or 0.0)
@@ -703,7 +714,15 @@ def hospital_admin_home(request):
         except (ValueError, TypeError):
             ipd_b = 0.0
         try:
-            tot_p = float(cd.get('total_paid') or cd.get('total') or 0.0)
+            pharm_b = float(cd.get('pharmacy_bill') or cd.get('pharmacy') or 0.0)
+        except (ValueError, TypeError):
+            pharm_b = 0.0
+        try:
+            inv_b = float(cd.get('investigation_bill') or cd.get('investigation') or 0.0)
+        except (ValueError, TypeError):
+            inv_b = 0.0
+        try:
+            tot_p = float(cd.get('total_revenue') or cd.get('total_paid') or cd.get('total') or 0.0)
             if tot_p > 10000000:
                 tot_p = 0.0
         except (ValueError, TypeError):
@@ -719,7 +738,10 @@ def hospital_admin_home(request):
 
             opd_revenue += opd_b
             ipd_revenue += ipd_b
-            total_revenue += (tot_p if tot_p > 0 else (opd_b + ipd_b))
+            pharmacy_revenue += pharm_b
+            investigation_revenue += inv_b
+            row_sum = opd_b + ipd_b + pharm_b + inv_b
+            total_revenue += (tot_p if tot_p > 0 else row_sum)
 
     # 8. Follow-ups Pending: Leads with pending follow-up status
     fu_pending_qs = hospital_all_leads.exclude(
@@ -909,6 +931,11 @@ def hospital_admin_home(request):
     formatted_revenue = format_indian_currency(total_revenue)
     formatted_opd_revenue = format_indian_currency(opd_revenue)
     formatted_ipd_revenue = format_indian_currency(ipd_revenue)
+    formatted_pharmacy_revenue = format_indian_currency(pharmacy_revenue)
+    formatted_investigation_revenue = format_indian_currency(investigation_revenue)
+    
+    conversion_rate_pct = round((appointment_booked_count / total_leads_count * 100), 1) if total_leads_count > 0 else 0.0
+    formatted_conversion_rate = f"{conversion_rate_pct}%" 
 
     insights = {
         # Core KPIs for SuperAdmin
@@ -939,6 +966,11 @@ def hospital_admin_home(request):
         "formatted_opd_revenue": formatted_opd_revenue,
         "ipd_revenue": ipd_revenue,
         "formatted_ipd_revenue": formatted_ipd_revenue,
+        "pharmacy_revenue": pharmacy_revenue,
+        "formatted_pharmacy_revenue": formatted_pharmacy_revenue,
+        "investigation_revenue": investigation_revenue,
+        "formatted_investigation_revenue": formatted_investigation_revenue,
+        "conversion_rate": formatted_conversion_rate,
 
         # Charts Data JSON Formatted
         "month_distribution": month_dist,
@@ -2122,14 +2154,18 @@ def live_metrics_api(request):
             call_not_done_base = active_date_leads
 
         cnd_qs = call_not_done_base.filter(
-            Q(stage__name__in=['Fresh', 'Assigned', 'New']) |
+            Q(stage__name__in=['Fresh', 'New', 'Uncontacted']) |
             Q(deal_status__in=[DealStatus.UNCONTACTED, 'UNCONTACTED', 'New', 'Uncontacted'])
         ).exclude(
             Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
-            Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done', 'Lost'])
+            Q(stage__name__in=['Payment Done', 'OPD Done', 'Cancelled', 'Appointment - Confirmed', 'Follow Up Done', 'Lost', 'Assigned']) |
+            Q(custom_data__first_calling_date__isnull=False) |
+            Q(custom_data__follow_up_1_remark__isnull=False) |
+            Q(custom_data__calling_remark_1__isnull=False) |
+            Q(custom_data__appointment_status__icontains='Book')
         )
         cnd_fresh = cnd_qs.filter(stage__name__in=['Fresh', 'New']).count()
-        cnd_assigned = cnd_qs.filter(stage__name='Assigned').count()
+        cnd_assigned = cnd_qs.filter(stage__name='Uncontacted').count()
         call_not_done_count = cnd_fresh + cnd_assigned
 
         # Latest lead tracking to detect new entries

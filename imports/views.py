@@ -725,12 +725,13 @@ def campaign_import_execute(request):
         if action_val:
             r["duplicate_action"] = action_val
 
+    existing_job_id = cached_data.get('import_job_id')
     return _execute_campaign_leads_import(
-        request, rows, campaign, target_hospital, original_filename
+        request, rows, campaign, target_hospital, original_filename, existing_job_id=existing_job_id
     )
 
 
-def _execute_campaign_leads_import(request, rows, campaign, target_hospital, original_filename, default_strategy=None):
+def _execute_campaign_leads_import(request, rows, campaign, target_hospital, original_filename, default_strategy=None, existing_job_id=None):
     """Core function to create/update Lead records with transaction safety and update Campaign start/end dates."""
     from leads.models import MasterGroup, MasterItem, LeadCustomField
     from followups.models import FollowUp, FollowUpStatus, FollowUpMode
@@ -797,13 +798,21 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
     current_seq = max_seq
 
     try:
-        job = ImportJob.objects.create(
-            file=None,
-            original_filename=original_filename,
-            total_rows=len(rows),
-            created_by=request.user,
-            status=ImportJob.Status.PROCESSING,
-        )
+        job = None
+        if existing_job_id:
+            job = ImportJob.objects.filter(pk=existing_job_id).first()
+            if job:
+                job.total_rows = len(rows)
+                job.status = ImportJob.Status.PROCESSING
+                job.save()
+        if not job:
+            job = ImportJob.objects.create(
+                file=None,
+                original_filename=original_filename,
+                total_rows=len(rows),
+                created_by=request.user,
+                status=ImportJob.Status.PROCESSING,
+            )
     except Exception as job_err:
         import logging
         logging.getLogger("django.request").warning(f"Could not persist ImportJob tracking: {job_err}")

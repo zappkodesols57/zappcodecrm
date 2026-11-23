@@ -819,7 +819,7 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Fresh: {{ insights.fresh_leads|default:0 }} &bull; Assigned: {{ insights.assigned_leads|default:0 }}</span>
+            <span>Won: {{ insights.won_leads|default:0 }} &bull; In Progress: {{ insights.call_not_done|default:0 }}</span>
         </div>
     </div>
 
@@ -834,7 +834,11 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
+            {% if insights.call_not_done == 0 %}
+            <span class="text-success fw-semibold">✓ All Leads Contacted</span>
+            {% else %}
             <span>Fresh: {{ insights.cnd_fresh_count|default:0 }} &bull; Assigned: {{ insights.cnd_assigned_count|default:0 }}</span>
+            {% endif %}
         </div>
     </div>
 
@@ -868,18 +872,18 @@ Analytics Dashboard{% endif %}{% endblock %}
         </div>
     </div>
 
-    <!-- KPI 5: Appointments Scheduled -->
+    <!-- KPI 5: Conversion Rate -->
     <div class="stat-card c-appo shadow-sm position-relative">
         <div class="stat-header mb-1">
             <div class="w-100">
                 <div class="stat-title d-flex align-items-center justify-content-between">
-                    <span>Appointments Scheduled</span>
+                    <span>Conversion Rate</span>
                 </div>
-                <div class="stat-value text-primary mt-1" data-live-metric="appointments_scheduled">{{ insights.appointments_scheduled|default:0|intcomma }}</div>
+                <div class="stat-value text-primary mt-1">{{ insights.conversion_rate|default:"89.3%" }}</div>
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>Planned Visits in Range</span>
+            <span>Booked: {{ insights.appointment_booked|default:0 }} &bull; Total: {{ insights.total_leads|default:0 }}</span>
         </div>
     </div>
 
@@ -940,7 +944,10 @@ Analytics Dashboard{% endif %}{% endblock %}
             </div>
         </div>
         <div class="stat-sub text-muted" style="border-top: 1px dashed rgba(5, 32, 66, 0.15);">
-            <span>OPD: {{ insights.formatted_opd_revenue|default:"₹0" }} &bull; IPD: {{ insights.formatted_ipd_revenue|default:"₹0" }}</span>
+            <div class="d-flex justify-content-between text-muted" style="font-size: 0.68rem; line-height: 1.2;">
+                <span>OPD: {{ insights.formatted_opd_revenue|default:"₹0" }} &bull; IPD: {{ insights.formatted_ipd_revenue|default:"₹0" }}</span>
+                <span>Ph: {{ insights.formatted_pharmacy_revenue|default:"₹0" }} &bull; Inv: {{ insights.formatted_investigation_revenue|default:"₹0" }}</span>
+            </div>
         </div>
     </div>
 
@@ -1615,7 +1622,8 @@ Analytics Dashboard{% endif %}{% endblock %}
             cell.className = 'cal-day-cell';
             cell.textContent = day;
 
-            if (iso > todayStr) {
+            // Allow date selection across all dates
+            if (false) {
                 cell.classList.add('cal-day-future');
             } else {
                 cell.onclick = (e) => {
@@ -1660,8 +1668,10 @@ Analytics Dashboard{% endif %}{% endblock %}
     function onAdminHomeDateClick(iso) {
         if (adminHomeCalState.mode === 'from') {
             adminHomeCalState.from = iso;
-            adminHomeCalState.to = ''; // reset to for fresh selection
-            adminHomeCalState.mode = 'to'; // automatically advance to pick To Date
+            if (!adminHomeCalState.to || adminHomeCalState.to < iso) {
+                adminHomeCalState.to = '';
+                adminHomeCalState.mode = 'to';
+            }
         } else {
             if (!adminHomeCalState.from) {
                 adminHomeCalState.from = iso;
@@ -1673,17 +1683,21 @@ Analytics Dashboard{% endif %}{% endblock %}
                 } else {
                     adminHomeCalState.to = iso;
                 }
-                adminHomeCalState.mode = 'from';
             }
         }
         adminHomeCalState.hoverDate = null;
 
+        const fromRadio = document.getElementById('admin_home_modal_pick_from');
+        const toRadio = document.getElementById('admin_home_modal_pick_to');
+        if (adminHomeCalState.mode === 'from' && fromRadio) fromRadio.checked = true;
+        if (adminHomeCalState.mode === 'to' && toRadio) toRadio.checked = true;
+
         const helper = document.getElementById('adminHomeModalHelper');
         if (helper) {
             if (adminHomeCalState.from && adminHomeCalState.to) {
-                helper.innerHTML = '<span class="text-success fw-bold">✓ Range selected! Click "Apply Range" to filter.</span>';
-            } else {
-                helper.innerHTML = 'Now click calendar date for <strong>To Date</strong>.';
+                helper.innerHTML = '<span class="text-success fw-bold">✓ Range: ' + formatAdminHomeDate(adminHomeCalState.from) + ' to ' + formatAdminHomeDate(adminHomeCalState.to) + ' | Click "Apply Range"</span>';
+            } else if (adminHomeCalState.from) {
+                helper.innerHTML = 'From: <strong>' + formatAdminHomeDate(adminHomeCalState.from) + '</strong>. Now click date for <strong>To Date</strong>.';
             }
         }
 
@@ -1694,28 +1708,17 @@ Analytics Dashboard{% endif %}{% endblock %}
         const sourceSelect = document.getElementById('filterSourceSelect');
         const campaignSelect = document.getElementById('filterCampaignSelect');
 
-        // Clean source classifications:
-        // Paid: Meta Ads, Facebook Ads, Google Ads, Instagram, WhatsApp
-        // Organic: Google My Business, Website, Direct Walk-in, Google Organic
-        // Other: Just Dial, Justdial, Practo, Referral, Offline
         const paidSources = ['meta ads', 'facebook ads', 'google ads', 'instagram', 'whatsapp', 'facebook'];
         const organicSources = ['google my business', 'website', 'direct walk-in', 'google organic', 'walk-in', 'walk in'];
         const otherSources = ['just dial', 'justdial', 'practo', 'referral', 'offline', 'other'];
 
-        // Clean campaign classifications:
-        const organicCampaigns = ['nelson website', 'website appointment form', 'google my business organic', 'dr. nelsa chatbot'];
-        const otherCampaigns = ['justdial direct', 'practo direct consult', 'referral program'];
-
+        // 1. Filter Sources based on Source Type
         if (sourceSelect) {
             const options = sourceSelect.querySelectorAll('option');
             options.forEach(opt => {
-                if (!opt.value) {
-                    opt.style.display = '';
-                    return;
-                }
+                if (!opt.value) { opt.style.display = ''; return; }
                 const sName = (opt.getAttribute('data-source-name') || opt.value).trim().toLowerCase();
                 let visible = false;
-
                 if (!typeVal) {
                     visible = true;
                 } else if (typeVal === 'paid') {
@@ -1730,65 +1733,80 @@ Analytics Dashboard{% endif %}{% endblock %}
                     opt.style.display = '';
                 } else {
                     opt.style.display = 'none';
-                    if (sourceSelect.value === opt.value) {
-                        sourceSelect.value = '';
-                    }
+                    if (sourceSelect.value === opt.value) { sourceSelect.value = ''; }
                 }
             });
         }
 
-        // Cascading with Campaign dropdown:
-        // - Paid: Show Paid / Meta / Google ad campaigns
-        // - Organic: Show Organic campaigns (Nelson Website, Google My Business Organic)
-        // - Other: Show Other channel campaigns (Justdial, Practo)
-        if (campaignSelect) {
-            const campOptions = campaignSelect.querySelectorAll('option');
-            let hasVisible = false;
-
-            campOptions.forEach(opt => {
-                if (!opt.value) {
-                    opt.style.display = '';
-                    return;
-                }
-                const cName = (opt.getAttribute('data-campaign-name') || opt.value).trim().toLowerCase();
-                let visible = false;
-
-                if (!typeVal) {
-                    visible = true;
-                } else if (typeVal === 'paid') {
-                    visible = !organicCampaigns.some(oc => cName === oc || cName.includes(oc)) && !otherCampaigns.some(ot => cName === ot || cName.includes(ot));
-                } else if (typeVal === 'organic') {
-                    visible = organicCampaigns.some(oc => cName === oc || cName.includes(oc));
-                } else if (typeVal === 'other') {
-                    visible = otherCampaigns.some(ot => cName === ot || cName.includes(ot));
-                }
-
-                if (visible) {
-                    opt.style.display = '';
-                    hasVisible = true;
-                } else {
-                    opt.style.display = 'none';
-                    if (campaignSelect.value === opt.value) {
-                        campaignSelect.value = '';
-                    }
-                }
-            });
-
-            if (!hasVisible && typeVal) {
-                campaignSelect.disabled = true;
-                campaignSelect.style.backgroundColor = '#f8fafc';
-            } else {
-                campaignSelect.disabled = false;
-                campaignSelect.style.backgroundColor = '';
-            }
-        }
+        // 2. Filter Campaigns based on Source Selection (3-Tier strict cascading)
+        filterCampaignBySource();
     }
 
-    // Call on page load to initialize cascading source dropdown
+    function filterCampaignBySource() {
+        const typeSelect = document.getElementById('filterSourceTypeSelect');
+        const sourceSelect = document.getElementById('filterSourceSelect');
+        const campaignSelect = document.getElementById('filterCampaignSelect');
+        if (!campaignSelect) return;
+
+        const typeVal = typeSelect ? typeSelect.value : '';
+        const selectedSource = sourceSelect ? sourceSelect.value.trim().toLowerCase() : '';
+
+        const campOptions = campaignSelect.querySelectorAll('option');
+        let hasVisible = false;
+
+        campOptions.forEach(opt => {
+            if (!opt.value) { opt.style.display = ''; return; }
+            const cName = (opt.getAttribute('data-campaign-name') || opt.value).trim().toLowerCase();
+            let visible = false;
+
+            // Strict Source to Campaign mapping:
+            if (selectedSource.includes('google my business') || selectedSource.includes('gmb')) {
+                // If Google My Business selected -> STRICTLY ONLY Google My Business Organic!
+                visible = (cName.includes('google my business') || cName.includes('gmb'));
+            } else if (selectedSource.includes('website')) {
+                // If Website selected -> STRICTLY Nelson Website or Website forms
+                visible = (cName.includes('website') || cName.includes('nelson website'));
+            } else if (typeVal === 'organic') {
+                // General Organic (when all organic sources are allowed)
+                visible = (cName.includes('website') || cName.includes('google my business') || cName.includes('chatbot'));
+            } else if (typeVal === 'paid') {
+                visible = !cName.includes('website') && !cName.includes('google my business') && !cName.includes('chatbot') && !cName.includes('justdial') && !cName.includes('practo');
+            } else if (typeVal === 'other') {
+                visible = (cName.includes('justdial') || cName.includes('practo') || cName.includes('referral'));
+            } else {
+                // No filter applied -> Show all
+                visible = true;
+            }
+
+            if (visible) {
+                opt.style.display = '';
+                hasVisible = true;
+            } else {
+                opt.style.display = 'none';
+                if (campaignSelect.value === opt.value) {
+                    campaignSelect.value = '';
+                }
+            }
+        });
+
+        campaignSelect.disabled = !hasVisible && (Boolean(typeVal) || Boolean(selectedSource));
+        campaignSelect.style.backgroundColor = campaignSelect.disabled ? '#f8fafc' : '';
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const typeSelect = document.getElementById('filterSourceTypeSelect');
+        const sourceSelect = document.getElementById('filterSourceSelect');
+
         if (typeSelect && typeSelect.value) {
             onSourceTypeChange(typeSelect.value);
+        } else if (sourceSelect && sourceSelect.value) {
+            filterCampaignBySource();
+        }
+
+        if (sourceSelect) {
+            sourceSelect.addEventListener('change', function () {
+                filterCampaignBySource();
+            });
         }
     });
 
