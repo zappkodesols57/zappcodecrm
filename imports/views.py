@@ -862,20 +862,45 @@ def _execute_campaign_leads_import(request, rows, campaign, target_hospital, ori
                 lead_stage = stage_new
                 lead_deal_status = "OPEN"
 
-                if "lost" in final_status_raw:
+                if "lost" in final_status_raw or "cancel" in final_status_raw:
                     lead_deal_status = "LOST"
                     if "lost" in stage_cache:
                         lead_stage = stage_cache["lost"]
+                    elif "cancelled" in stage_cache:
+                        lead_stage = stage_cache["cancelled"]
+                elif "payment" in final_status_raw:
+                    if "pending" in final_status_raw:
+                        lead_deal_status = "OPEN"
+                        if "payment pending" in stage_cache:
+                            lead_stage = stage_cache["payment pending"]
+                        elif "payment - pending" in stage_cache:
+                            lead_stage = stage_cache["payment - pending"]
+                    else:
+                        lead_deal_status = "WON"
+                        if "payment done" in stage_cache:
+                            lead_stage = stage_cache["payment done"]
+                elif "won" in final_status_raw or "admission" in final_status_raw:
+                    lead_deal_status = "WON"
+                    if "payment done" in stage_cache:
+                        lead_stage = stage_cache["payment done"]
+                    elif "admission done" in stage_cache:
+                        lead_stage = stage_cache["admission done"]
+                    elif "complete" in stage_cache:
+                        lead_stage = stage_cache["complete"]
+                    elif "admission" in stage_cache:
+                        lead_stage = stage_cache["admission"]
+                elif "assigned" in final_status_raw:
+                    lead_deal_status = "OPEN"
+                    if "assigned" in stage_cache:
+                        lead_stage = stage_cache["assigned"]
+                elif "fresh" in final_status_raw:
+                    lead_deal_status = "OPEN"
+                    if "fresh" in stage_cache:
+                        lead_stage = stage_cache["fresh"]
                 elif "hold" in final_status_raw:
                     lead_deal_status = "HOLD"
                     if "hold" in stage_cache:
                         lead_stage = stage_cache["hold"]
-                elif "won" in final_status_raw or "admission" in final_status_raw:
-                    lead_deal_status = "WON"
-                    if "complete" in stage_cache:
-                        lead_stage = stage_cache["complete"]
-                    elif "admission" in stage_cache:
-                        lead_stage = stage_cache["admission"]
                 elif final_status_raw in stage_cache:
                     lead_stage = stage_cache[final_status_raw]
 
@@ -2665,6 +2690,32 @@ def quick_import(request):
                     else:
                         resolved_temp = "WARM"
 
+                # Determine Stage based on final_status_val or total bill
+                row_stage = default_stage
+                row_deal_status = "OPEN"
+                st_lookup = str(final_status_val or "").strip().lower()
+                if "lost" in st_lookup or "cancel" in st_lookup:
+                    row_deal_status = "LOST"
+                    row_stage = stage_cache.get("lost") or stage_cache.get("cancelled") or default_stage
+                elif "payment" in st_lookup or (total_bill_val and float(total_bill_val) > 0) or "opd done" in str(combined_notes).lower() or "ipd" in str(combined_notes).lower():
+                    if "pending" in st_lookup:
+                        row_deal_status = "OPEN"
+                        row_stage = stage_cache.get("payment pending") or stage_cache.get("payment - pending") or default_stage
+                    else:
+                        row_deal_status = "WON"
+                        row_stage = stage_cache.get("payment done") or default_stage
+                elif "won" in st_lookup or "admission" in st_lookup:
+                    row_deal_status = "WON"
+                    row_stage = stage_cache.get("payment done") or stage_cache.get("admission done") or default_stage
+                elif "assigned" in st_lookup:
+                    row_deal_status = "OPEN"
+                    row_stage = stage_cache.get("assigned") or default_stage
+                elif "fresh" in st_lookup:
+                    row_deal_status = "OPEN"
+                    row_stage = stage_cache.get("fresh") or default_stage
+                elif st_lookup in stage_cache:
+                    row_stage = stage_cache[st_lookup]
+
                 lead_obj = Lead.objects.create(
                     lead_code=gen_code,
                     name=name, mobile=mobile, alternate_mobile=alt_mobile,
@@ -2672,8 +2723,8 @@ def quick_import(request):
                     course=course_obj,
                     campaign=campaign_obj,
                     assigned_to=assigned_user,
-                    temperature=resolved_temp, stage=default_stage,
-                    deal_status="OPEN", admission_status="NOT_APPLIED",
+                    temperature=resolved_temp, stage=row_stage,
+                    deal_status=row_deal_status, admission_status="NOT_APPLIED",
                     inquiry_date=inquiry_date, source_category=cat, lead_source=src,
                     notes=combined_notes, created_by=request.user, hospital=user_hospital,
                     custom_data=custom_data_payload,
