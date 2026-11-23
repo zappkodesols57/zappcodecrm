@@ -924,6 +924,41 @@ class Lead(models.Model):
         return "—"
 
     @property
+    def effective_last_contact_date(self):
+        """
+        Returns the true last contact date with the lead:
+        1. Latest human Follow-up date (if created by staff).
+        2. First calling date from custom_data.
+        3. Appointment booked / confirmed date.
+        """
+        # Check follow-ups
+        try:
+            fus = self.followups.all()
+            if fus.exists():
+                last_fu = fus.order_by('-followup_date', '-created_at').first()
+                if last_fu and last_fu.followup_date:
+                    return last_fu.followup_date
+                elif last_fu and last_fu.created_at:
+                    return timezone.localdate(last_fu.created_at)
+        except Exception:
+            pass
+
+        cd = self.custom_data or {}
+        # Check calling date / follow-up dates in custom_data
+        for k in ['calling_date_remark_1', 'first_calling_date', 'followup_1_date', 'follow_up_1_date', 'calling_date_remark_2', 'calling_date_remark_3']:
+            val = cd.get(k)
+            if val and str(val).strip() and str(val).lower() not in ('none', 'nan', ''):
+                try:
+                    from datetime import datetime, date
+                    if isinstance(val, (datetime, date)):
+                        return val.date() if isinstance(val, datetime) else val
+                    return datetime.strptime(str(val)[:10], '%Y-%m-%d').date()
+                except Exception:
+                    pass
+
+        return None
+
+    @property
     def custom_dept(self):
         dept = self.get_custom("department") or self.get_custom("disease") or self.get_custom("dept")
         if not dept and self.course_id and self.course:

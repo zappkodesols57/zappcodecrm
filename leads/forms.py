@@ -673,6 +673,12 @@ class HospitalLeadForm(forms.ModelForm):
     
     cancellation_reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Enter reason for cancellation / not interested..."}), required=False, label="Reason for Cancellation / Not Interested")
     
+    # IPD Admission & Booking Fields
+    ipd_doctor = NonStrictChoiceField(choices=[], required=False)
+    ipd_from_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
+    ipd_from_time = FlexibleTimeField(widget=forms.TextInput(attrs={"type": "text", "class": "form-control time-mask-input custom-12h-time-input", "placeholder": "hh:mm AM/PM"}), required=False)
+    ipd_to_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
+
     # Billing & ID
     uhid_id_no = forms.CharField(max_length=100, required=False, label="UHID ID NO")
     ipd_no = forms.CharField(max_length=100, required=False, label="IPD NO")
@@ -769,7 +775,7 @@ class HospitalLeadForm(forms.ModelForm):
         cd = (self.instance.custom_data or {}) if (self.instance and self.instance.pk) else {}
         # Load JSON fields into form
         if self.instance and self.instance.pk:
-            for field in ['gender', 'age', 'department', 'doctor', 'hospital_branch', 'disease', 'appointment_status', 'appo_booked_date', 'appointment_time', 'followup_date', 'followup_time', 'followup_remark', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'payment_remarks', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
+            for field in ['gender', 'age', 'department', 'doctor', 'hospital_branch', 'disease', 'appointment_status', 'appo_booked_date', 'appointment_time', 'ipd_doctor', 'ipd_from_date', 'ipd_from_time', 'ipd_to_date', 'followup_date', 'followup_time', 'followup_remark', 'visit_date', 'priority', 'uhid_id_no', 'ipd_no', 'pharmacy_bill', 'opd_bill', 'ipd_bill', 'investigation_bill', 'investigation', 'total', 'payment_remarks', 'calling_date_remark_1', 'remark_1', 'calling_date_remark_2', 'calling_time_remark_2', 'remark_2', 'calling_date_remark_3', 'remark_3', 'deal_status', 'campaign', 'lead_source', 'comments', 'location', 'cancellation_reason']:
                 if field in cd and field in self.fields:
                     self.fields[field].initial = cd[field]
 
@@ -954,6 +960,9 @@ class HospitalLeadForm(forms.ModelForm):
             else:
                 self.fields["doctor"].choices = [("", "-- Select Department First --")] + combined_doctors
 
+            if "ipd_doctor" in self.fields:
+                self.fields["ipd_doctor"].choices = [("", "-- Select Doctor --")] + combined_doctors
+
             # -------------------------------------------------------------------
             # UNIFIED OPTIONS RESOLVER:
             # When options are configured in LeadCustomField (Edit Form Field),
@@ -998,13 +1007,26 @@ class HospitalLeadForm(forms.ModelForm):
             stage_choices = []
             for st in hosp_stages_qs.order_by('order', 'id'):
                 s_name = (st.name or '').strip()
-                if s_name and s_name.lower() not in seen_stage_names:
+                if not s_name:
+                    continue
+                # Exclude any stage containing Approval Pending
+                if 'approval pending' in s_name.lower():
+                    continue
+                # Rename Appointment - Confirmed to Appointment Booking
+                if s_name.lower() in ['appointment - confirmed', 'appointment confirmed']:
+                    s_name = 'Appointment Booking'
+                if s_name.lower() not in seen_stage_names:
                     seen_stage_names.add(s_name.lower())
                     stage_choices.append((s_name, s_name))
             
             curr_appt = self.fields["appointment_status"].initial
-            if curr_appt and str(curr_appt).strip().lower() not in seen_stage_names:
-                stage_choices.insert(0, (str(curr_appt).strip(), str(curr_appt).strip()))
+            if curr_appt:
+                curr_clean = str(curr_appt).strip()
+                if 'approval pending' not in curr_clean.lower():
+                    if curr_clean.lower() in ['appointment - confirmed', 'appointment confirmed']:
+                        curr_clean = 'Appointment Booking'
+                    if curr_clean.lower() not in seen_stage_names:
+                        stage_choices.insert(0, (curr_clean, curr_clean))
 
             self.fields["appointment_status"].choices = [("", "-- Select Stage --")] + stage_choices
             self.fields["deal_status"].choices = [("", "-- Select Deal Status --")] + get_field_options("deal_status", "Deal Statuses", "-- Select Deal Status --")
@@ -1598,13 +1620,14 @@ class HospitalLeadForm(forms.ModelForm):
                 existing_apt.status = AppointmentStatus.COMPLETED
                 existing_apt.save(update_fields=['status'])
 
-        # 1. Booking Status (Direct Appointment Confirmed - No doctor approval bottleneck)
+        # 1. Booking Status (Direct Appointment Booking - No doctor approval bottleneck)
         if is_booking_selected or (appo_date and doc_name and not is_cancelled_or_not_interested and not is_followup_needed and not has_payment):
-            cd['appointment_status'] = "Appointment Confirmed"
+            cd['appointment_status'] = "Appointment Booking"
             if appo_date and not instance.next_followup_date:
                 instance.next_followup_date = appo_date
             from leads.models import LeadStage
-            booking_stage = LeadStage.objects.filter(name__iexact='Appointment - Confirmed').first() or \
+            booking_stage = LeadStage.objects.filter(name__iexact='Appointment Booking').first() or \
+                            LeadStage.objects.filter(name__iexact='Appointment - Confirmed').first() or \
                             LeadStage.objects.filter(name__iexact='Appointment Confirmed').first() or \
                             LeadStage.objects.filter(name__iexact='Booking Confirmed').first()
             if booking_stage:
