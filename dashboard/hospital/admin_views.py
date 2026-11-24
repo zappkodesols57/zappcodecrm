@@ -827,16 +827,13 @@ def hospital_admin_home(request):
     for l in fast_leads:
         cd = l.get('custom_data') or {}
 
-        # 1. Revenue
         tot = 0.0
         try:
-            val = cd.get("total_paid") or cd.get("total") or 0.0
-            tot = float(val)
+            tot = float(cd.get("total_paid") or cd.get("total") or cd.get("total_revenue") or 0.0)
             if tot > 10000000:
                 tot = 0.0
         except (ValueError, TypeError):
             tot = 0.0
-        total_revenue += tot
 
         # 2. Location
         loc_raw = l.get('location') or cd.get('location') or 'Not Mentioned'
