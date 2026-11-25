@@ -26,8 +26,13 @@
     {% endif %}
   </td>
   <td>{{ lead.created_at|date:"d M Y, h:i A" }}</td>
-  <td class="text-end">
-    <div class="d-inline-flex gap-1 align-items-center">
+  <td class="text-end text-nowrap">
+    <div class="d-inline-flex gap-1 align-items-center flex-nowrap">
+      {% if not lead.assigned_to %}
+      <button type="button" onclick="event.stopPropagation(); captureLead({{ lead.pk }}, this);" style="background-color: #f59e0b; border-color: #f59e0b; color: #ffffff; height: 30px; min-width: 30px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;" class="btn btn-sm px-2 py-1 d-inline-flex align-items-center justify-content-center" title="Capture Lead">
+        <i class="fa-solid fa-hand-holding-hand"></i><span class="d-none d-sm-inline ms-1">Capture</span>
+      </button>
+      {% endif %}
       <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm action-btn-icon" title="View Lead">
         <i class="fa-solid fa-eye"></i>
       </a>

@@ -5694,3 +5694,136 @@ def bulk_lead_transfer(request):
             ("LOST", "Lost / Cancelled / Not Interested"),
         ],
     })
+
+
+from django.views.decorators.csrf import csrf_exempt
+
+
+@csrf_exempt
+def zappcode_academy_website_lead(request):
+    """
+    Public endpoint for Zappcode Academy (Business ID 7) website contact forms.
+    Accepts JSON or form-encoded POST with: name, email, mobile (or phone / mobile_no), course.
+    Creates a lead in Business ID 7 with:
+      - LeadSource: Website (source_type='ORGANIC')
+      - Campaign: Zappcode Academy
+    """
+    cors_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-Requested-With",
+    }
+
+    if request.method == "OPTIONS":
+        resp = JsonResponse({"status": "ok"})
+        for k, v in cors_headers.items():
+            resp[k] = v
+        return resp
+
+    if request.method != "POST":
+        resp = JsonResponse({"success": False, "error": "Only POST method is allowed."}, status=405)
+        for k, v in cors_headers.items():
+            resp[k] = v
+        return resp
+
+    try:
+        if request.content_type and "application/json" in request.content_type:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        else:
+            payload = request.POST.dict()
+    except Exception:
+        payload = request.POST.dict()
+
+    name = (payload.get("name") or payload.get("full_name") or "").strip()
+    email = (payload.get("email") or "").strip()
+    raw_mobile = (
+        payload.get("mobile")
+        or payload.get("mobile_no")
+        or payload.get("phone")
+        or payload.get("contact")
+        or ""
+    ).strip()
+    course_input = (payload.get("course") or payload.get("select_course") or "").strip()
+
+    digits = "".join(ch for ch in raw_mobile if ch.isdigit())
+    if len(digits) > 10:
+        digits = digits[-10:]
+
+    if not name or len(digits) < 10:
+        resp = JsonResponse(
+            {"success": False, "error": "Valid 'name' and 10-digit 'mobile' are required."},
+            status=400,
+        )
+        for k, v in cors_headers.items():
+            resp[k] = v
+        return resp
+
+    business = Business.objects.filter(id=7).first()
+    if not business:
+        resp = JsonResponse({"success": False, "error": "Business ID 7 not found."}, status=404)
+        for k, v in cors_headers.items():
+            resp[k] = v
+        return resp
+
+    lead_source = LeadSource.objects.filter(hospital_id=7, name__iexact="Website").first()
+    if not lead_source:
+        lead_source = LeadSource.objects.create(
+            hospital=business,
+            name="Website",
+            source_type="ORGANIC",
+        )
+    elif getattr(lead_source, "source_type", None) != "ORGANIC":
+        lead_source.source_type = "ORGANIC"
+        lead_source.save(update_fields=["source_type"])
+
+    campaign = Campaign.objects.filter(hospital_id=7, name__iexact="Zappcode Academy").first()
+    if not campaign:
+        campaign = Campaign.objects.create(
+            hospital=business,
+            name="Zappcode Academy",
+        )
+
+    course_obj = None
+    if course_input:
+        course_obj = Course.objects.filter(hospital_id=7, name__iexact=course_input).first()
+        if not course_obj:
+            course_obj = Course.objects.filter(hospital_id=7, name__icontains=course_input).first()
+
+    default_stage = (
+        PipelineStage.objects.filter(hospital_id=7, is_active=True)
+        .order_by("order", "id")
+        .first()
+    )
+
+    custom_data = {"source_url": "zappcodeacademy.com/contact-us/"}
+    if course_input:
+        custom_data["course"] = course_input
+
+    lead = Lead.objects.create(
+        hospital=business,
+        name=name,
+        mobile=digits,
+        email=email or None,
+        course=course_obj,
+        lead_source=lead_source,
+        campaign=campaign,
+        stage=default_stage,
+        custom_data=custom_data,
+        notes=f"Website Contact Form Inquiry" + (f" | Course: {course_input}" if course_input else ""),
+    )
+
+    resp = JsonResponse(
+        {
+            "success": True,
+            "lead_id": lead.pk,
+            "business_id": 7,
+            "lead_source": lead_source.name,
+            "source_type": getattr(lead_source, "source_type", "ORGANIC"),
+            "campaign": campaign.name,
+            "message": "Lead created successfully.",
+        },
+        status=201,
+    )
+    for k, v in cors_headers.items():
+        resp[k] = v
+    return resp

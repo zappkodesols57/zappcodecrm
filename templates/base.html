@@ -1878,7 +1878,30 @@
       opacity: 0 !important;
       pointer-events: none !important;
     }
-  </style>
+  
+  /* Global Standard Modal Footer Action Buttons (Center-aligned & Equal Size) */
+  .modal-footer {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+  }
+  .modal-footer > .btn,
+  .modal-footer > form > .btn,
+  .modal-footer > a.btn {
+    min-width: 125px !important;
+    height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 0 16px !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+  }
+
+</style>
   <link rel="stylesheet" href="{% static 'css/crm_datetime_picker.css' %}">
   {% block extra_head %}{% endblock %}
 </head>

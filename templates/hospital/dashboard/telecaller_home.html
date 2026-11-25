@@ -480,29 +480,46 @@
         .quick-action-microbar {
             width: calc(100vw - 16px) !important;
             max-width: calc(100vw - 16px) !important;
-            padding: 8px 10px !important;
-            border-radius: 12px !important;
-            bottom: 8px !important;
-            flex-wrap: wrap !important;
-            gap: 6px !important;
+            padding: 10px 12px !important;
+            border-radius: 14px !important;
+            bottom: 12px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            white-space: normal !important;
+        }
+        .quick-action-microbar .mb-row-1 {
+            display: flex !important;
             justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+        .quick-action-microbar .mb-row-2 {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            width: 100% !important;
+            flex-wrap: nowrap !important;
         }
         .microbar-lead-name {
-            max-width: 95px !important;
-            font-size: 0.75rem !important;
+            max-width: 180px !important;
+            font-size: 0.78rem !important;
         }
         .microbar-lead-phone {
-            font-size: 0.68rem !important;
+            font-size: 0.70rem !important;
         }
         .microbar-input {
-            width: 120px !important;
-            height: 28px !important;
-            font-size: 0.74rem !important;
-            padding: 2px 6px !important;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            width: auto !important;
+            height: 30px !important;
+            font-size: 0.76rem !important;
+            padding: 2px 8px !important;
         }
         .microbar-btn {
-            height: 28px !important;
-            padding: 3px 7px !important;
+            height: 30px !important;
+            padding: 4px 9px !important;
+            flex-shrink: 0 !important;
             font-size: 0.7rem !important;
         }
     }
@@ -3428,32 +3445,33 @@
 
 <!-- Quick Action Sticky Micro-Bar UI Element (Focused on Remarks & Follow-up) -->
 <div id="quickActionMicrobar" class="quick-action-microbar" aria-live="polite">
-    <div class="d-flex flex-column me-1" style="line-height: 1.1;">
-        <span id="microbarName" class="microbar-lead-name">Patient Name</span>
-        <span id="microbarPhone" class="microbar-lead-phone">Contact</span>
+    <!-- Row 1: Name, Contact & Mobile Close -->
+    <div class="mb-row-1 d-flex align-items-center justify-content-between gap-2">
+        <div class="d-flex flex-column me-1" style="line-height: 1.1;">
+            <span id="microbarName" class="microbar-lead-name">Patient Name</span>
+            <span id="microbarPhone" class="microbar-lead-phone">Contact</span>
+        </div>
+        <button type="button" class="microbar-btn-close d-md-none" onclick="dismissMicrobar()" title="Close Bar">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
     </div>
 
-    <!-- Inline Remark Input Field -->
-    <div class="d-flex align-items-center gap-1 ms-1">
-        <input type="text" id="microbarRemarkInput" class="microbar-input" style="width: 240px;" placeholder="Add quick remark...">
+    <!-- Row 2: Remark Input + Save + Follow-up + View + WhatsApp -->
+    <div class="mb-row-2 d-flex align-items-center gap-1 ms-md-1">
+        <input type="text" id="microbarRemarkInput" class="microbar-input" style="width: 220px;" placeholder="Add quick remark...">
         <button type="button" id="microbarSaveRemarkBtn" class="microbar-btn microbar-btn-save" onclick="saveQuickRemark()" title="Save Remark">
-            <i class="fa-solid fa-check"></i> Save Remark
+            <i class="fa-solid fa-check"></i><span class="d-none d-md-inline ms-1">Save</span>
         </button>
-    </div>
-
-    <!-- Add Follow-up Button -->
-    <div class="d-flex align-items-center gap-1 ms-1">
         <button type="button" class="microbar-btn" style="background: #f59e0b; color: #ffffff;" onclick="openQuickFollowupModal()" title="Schedule Follow-up">
-            <i class="fa-solid fa-calendar-plus"></i> + Add Follow-up
+            <i class="fa-solid fa-calendar-plus"></i><span class="d-none d-md-inline ms-1">+ Follow-up</span>
         </button>
-    </div>
-
-    <!-- Open Lead Detail in New Tab -->
-    <div class="d-flex align-items-center gap-1 ms-1">
-        <a id="microbarViewBtn" href="#" class="microbar-btn microbar-btn-view" title="Open Full Lead Profile">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i> Full Profile
+        <a id="microbarViewBtn" href="#" class="microbar-btn" style="background: #0ea5e9; color: #ffffff;" title="Open Full Lead Profile">
+            <i class="fa-solid fa-eye"></i><span class="d-none d-md-inline ms-1">Full Profile</span>
         </a>
-        <button type="button" class="microbar-btn-close ms-1" onclick="dismissMicrobar()" title="Close Bar">
+        <a id="microbarWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="microbar-btn" style="background: #25D366; color: #ffffff;" title="WhatsApp" onclick="var p=document.getElementById('microbarPhone').textContent.replace(/\D/g,''); if(p){ this.href='https://wa.me/91'+p.slice(-10); }">
+            <i class="fa-brands fa-whatsapp"></i><span class="d-none d-md-inline ms-1">WhatsApp</span>
+        </a>
+        <button type="button" class="microbar-btn-close ms-1 d-none d-md-inline-flex" onclick="dismissMicrobar()" title="Close Bar">
             <i class="fa-solid fa-xmark"></i>
         </button>
     </div>
