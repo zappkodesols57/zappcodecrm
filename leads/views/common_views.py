@@ -5734,16 +5734,31 @@ def zappcode_academy_website_lead(request):
     except Exception:
         payload = request.POST.dict()
 
-    name = (payload.get("name") or payload.get("full_name") or "").strip()
-    email = (payload.get("email") or "").strip()
-    raw_mobile = (
-        payload.get("mobile")
-        or payload.get("mobile_no")
-        or payload.get("phone")
-        or payload.get("contact")
-        or ""
-    ).strip()
-    course_input = (payload.get("course") or payload.get("select_course") or "").strip()
+    # Flatten nested CF7/Elementor dicts if present
+    if isinstance(payload.get("data"), dict):
+        payload = {**payload, **payload["data"]}
+    if isinstance(payload.get("fields"), dict):
+        payload = {**payload, **payload["fields"]}
+
+    def _pick_field(keys, substrings):
+        for k in keys:
+            if payload.get(k):
+                return str(payload[k]).strip()
+        for k, v in payload.items():
+            kl = str(k).lower()
+            if any(sub in kl for sub in substrings) and v:
+                if isinstance(v, list):
+                    v = v[0] if v else ""
+                return str(v).strip()
+        return ""
+
+    name = _pick_field(["name", "full_name", "your-name", "your_name"], ["name"])
+    email = _pick_field(["email", "your-email", "your_email"], ["email", "mail"])
+    raw_mobile = _pick_field(
+        ["mobile", "mobile_no", "phone", "contact", "your-phone", "your-mobile", "your_phone"],
+        ["mobile", "phone", "tel", "contact"],
+    )
+    course_input = _pick_field(["course", "select_course", "your-course"], ["course", "menu-"])
 
     digits = "".join(ch for ch in raw_mobile if ch.isdigit())
     if len(digits) > 10:
