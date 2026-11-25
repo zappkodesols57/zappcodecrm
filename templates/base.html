@@ -1879,6 +1879,15 @@
       pointer-events: none !important;
     }
   
+  /* Ensure icons inside solid-colored action buttons are always crisp white */
+  a[style*="background-color: #0ea5e9"] i,
+  a[style*="background-color: #2563eb"] i,
+  a[style*="background-color: #25D366"] i,
+  a[style*="background-color: #1e3a8a"] i,
+  button[style*="background-color: #f59e0b"] i {
+    color: #ffffff !important;
+  }
+
   /* Global Standard Modal Footer Action Buttons (Center-aligned & Equal Size) */
   .modal-footer {
     display: flex !important;
