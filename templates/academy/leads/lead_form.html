@@ -1610,8 +1610,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     [inputFollowupDate, inputFollowupRemark, inputVisitDate, selectVisitSlot, selectVisitDoneOutcome, selectVisitCancelReason, inputAdmDate, inputReason].forEach(i => { if (i) i.required = false; });
 
-    // 1. Follow up pending
-    if (stageName.includes("follow up pending") || stageName.includes("follow up needed") || (stageName.includes("follow up") && !stageName.includes("completed"))) {
+    // 1. Add Follow Up / Follow up pending (exclude Done / Completed)
+    if (stageName.includes("follow up pending") || stageName.includes("follow up needed") || stageName.includes("add follow up") || (stageName.includes("follow up") && !stageName.includes("completed") && !stageName.includes("done"))) {
       containerFollowup.style.display = "block";
       if (inputFollowupDate) {
         inputFollowupDate.disabled = false;
@@ -1624,16 +1624,15 @@ document.addEventListener("DOMContentLoaded", function() {
       if (dealStatusInput) dealStatusInput.value = "OPEN";
       if (admissionStatusInput) admissionStatusInput.value = "HOLD";
     }
-    // 2. Follow up completed
-    else if (stageName.includes("follow up completed") || stageName.includes("followup completed")) {
-      // Completed call: keep followup container optional or allow note taking
-      containerFollowup.style.display = "block";
+    // 2. Follow up done / completed (no calendar/slot booking, only Notes & Remarks)
+    else if (stageName.includes("follow up completed") || stageName.includes("followup completed") || stageName.includes("follow up done") || stageName.includes("followup done")) {
+      containerFollowup.style.display = "none";
       if (inputFollowupDate) {
-        inputFollowupDate.disabled = false;
+        inputFollowupDate.disabled = true;
         inputFollowupDate.required = false;
       }
       if (inputFollowupRemark) {
-        inputFollowupRemark.disabled = false;
+        inputFollowupRemark.disabled = true;
         inputFollowupRemark.required = false;
       }
       if (dealStatusInput) dealStatusInput.value = "OPEN";

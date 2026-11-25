@@ -199,6 +199,12 @@
       </a>
       {% endif %}
 
+      {% if user.can_assign_leads %}
+      <button type="button" class="btn btn-sm btn-outline-primary px-3 rounded-pill fw-semibold" data-bs-toggle="modal" data-bs-target="#transferLeadModal" style="font-size: 0.8rem;">
+        <i class="fa-solid fa-right-left me-1"></i> Transfer Lead
+      </button>
+      {% endif %}
+
       {% if user.is_superuser or user.role in 'SUPER_ADMIN,ADMIN' or user.business and user.role in 'SUPER_ADMIN,ADMIN,MANAGER' %}
       <div class="dropdown">
         <button class="btn btn-sm btn-outline-secondary rounded-pill px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; line-height: 1;">
@@ -367,45 +373,45 @@
         </div>
       </div>
 
-      <!-- Telecaller Assignment / Transfer Bar (Hospital Business) -->
+      <!-- Transfer Lead Modal (Hospital Business) -->
       {% if user.can_assign_leads %}
-      <div class="mt-3 pt-3 border-top">
-        <form method="post" action="{% url 'leads:assign_lead' lead.pk %}" class="p-2.5 px-3 rounded-3 bg-white border d-flex flex-wrap align-items-center justify-content-between gap-3" style="border: 1px solid #cbd5e1 !important;">
-          {% csrf_token %}
-          <div>
-            <span class="fw-bold text-dark d-block text-uppercase" style="font-size: 0.76rem; letter-spacing: 0.5px;">Reassign / Transfer Lead</span>
-            <span class="text-muted" style="font-size: 0.70rem;">Change Lead Owner Telecaller or Reporting Manager</span>
+      <div class="modal fade" id="transferLeadModal" tabindex="-1" aria-labelledby="transferLeadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+          <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header py-2.5 px-3" style="background-color: #052042 !important;">
+              <h6 class="modal-title fw-bold mb-0 text-white" id="transferLeadModalLabel" style="font-size: 0.92rem;">
+                <i class="fa-solid fa-right-left me-2 text-info"></i>Transfer Lead
+              </h6>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'leads:assign_lead' lead.pk %}">
+              {% csrf_token %}
+              <div class="modal-body p-3">
+                <div class="mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small text-muted">Lead Name:</span>
+                    <span class="fw-bold text-dark small">{{ lead.name }}</span>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">Current Owner:</span>
+                    <span class="fw-semibold text-primary small">{% if lead.assigned_to %}{{ lead.assigned_to.get_full_name|default:lead.assigned_to.username }}{% else %}Unassigned{% endif %}</span>
+                  </div>
+                </div>
+                <label class="form-label small fw-bold text-dark mb-1">Select Telecaller</label>
+                <select name="assigned_to" class="form-select form-select-sm bg-white no-tom-select" style="border-color: #cbd5e1; height: 38px; border-radius: 8px;">
+                  <option value="">-- Unassigned (Telecaller) --</option>
+                  {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="modal-footer bg-light border-top py-2.5">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-sm btn-primary" style="background-color: #052042; border-color: #052042;">Transfer</button>
+              </div>
+            </form>
           </div>
-          <div class="d-flex align-items-center flex-grow-1 flex-wrap gap-3 justify-content-end">
-            <!-- 1. Telecaller Dropdown with Clear Pre-pended Label -->
-            <div class="input-group input-group-sm" style="min-width: 240px; max-width: 320px; flex: 1;">
-              <span class="input-group-text bg-light text-secondary fw-bold" style="border: 1.5px solid #94a3b8; border-right: none; font-size: 0.76rem;">Telecaller:</span>
-              <select name="assigned_to" class="form-select form-select-sm bg-white no-tom-select" title="Select Telecaller" style="border: 1.5px solid #94a3b8 !important; font-size: 0.82rem; height: 36px;">
-                <option value="">-- Unassigned (Telecaller) --</option>
-                {% for emp in employees %}
-                  <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <!-- 2. Manager Dropdown with Clear Pre-pended Label -->
-            <div class="input-group input-group-sm" style="min-width: 220px; max-width: 290px; flex: 1;">
-              <span class="input-group-text bg-light text-secondary fw-bold" style="border: 1.5px solid #94a3b8; border-right: none; font-size: 0.76rem;">Manager:</span>
-              <select name="assigned_manager" class="form-select form-select-sm bg-white no-tom-select" title="Select Reporting Manager" style="border: 1.5px solid #94a3b8 !important; font-size: 0.82rem; height: 36px;">
-                <option value="">-- No Manager --</option>
-                {% for mgr in managers %}
-                  <option value="{{ mgr.id }}" {% if lead.assigned_manager_id == mgr.id %}selected{% endif %}>{{ mgr.get_full_name|default:mgr.username }} ({{ mgr.get_role_display }})</option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div>
-              <button type="submit" class="btn btn-sm btn-primary px-3 fw-semibold shadow-xs" style="height: 36px; font-size: 0.82rem; background-color: var(--brand) !important; border-color: var(--brand) !important;" title="Transfer Lead">
-                Transfer
-              </button>
-            </div>
-          </div>
-        </form>
+        </div>
       </div>
       {% endif %}
     </div>
