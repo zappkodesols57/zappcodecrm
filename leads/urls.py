@@ -93,6 +93,7 @@ urlpatterns = [
     path("hospital-configuration/doctor/<int:pk>/toggle/", views.hospital_doctor_toggle, name="hospital_doctor_toggle"),
     path("hospital-configuration/doctor/<int:pk>/delete/", views.hospital_doctor_delete, name="hospital_doctor_delete"),
     path("api/cascading-hospital-data/", views.cascading_hospital_data_api, name="cascading_hospital_data_api"),
+    path("api/zappcode-academy/website-lead/", views.zappcode_academy_website_lead, name="zappcode_academy_website_lead"),
     path("bulk-transfer/", views.bulk_lead_transfer, name="bulk_lead_transfer"),
 ]
 

@@ -215,11 +215,14 @@
     </div>
   </form>
 
-  <!-- C. User Role Tag -->
-  <div class="mobile-role-wrap flex-shrink-0">
-    <span class="mobile-header-role-badge">
-      {{ user.get_role_display|default:user.role|truncatechars:10 }}
+  <!-- C. User Role Initial + Logout (Mobile) -->
+  <div class="mobile-role-wrap flex-shrink-0 d-flex align-items-center gap-1">
+    <span class="mobile-header-role-badge" title="{{ user.get_role_display|default:user.role }}" style="min-width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 0 8px; font-weight: 700;">
+      {% if user.role == 'TELECALLER' or user.role == 'LEAD_ATTENDENT' %}T{% elif user.role == 'ADMIN' %}A{% elif user.role == 'SUPER_ADMIN' or user.is_superuser %}S{% elif user.role == 'COUNSELOR' or user.role == 'COUNSELLOR' %}C{% elif user.role == 'MANAGER' %}M{% elif user.role == 'DOCTOR' %}D{% else %}{{ user.get_role_display|default:user.role|slice:":1"|upper }}{% endif %}
     </span>
+    <button type="button" class="btn btn-sm btn-outline-danger rounded-circle d-inline-flex align-items-center justify-content-center p-0" data-bs-toggle="modal" data-bs-target="#logoutConfirmModal" title="Logout" style="width: 28px; height: 28px;">
+      <i class="fa-solid fa-arrow-right-from-bracket" style="font-size: 0.75rem;"></i>
+    </button>
   </div>
 </div>
 
