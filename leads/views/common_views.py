@@ -5769,16 +5769,9 @@ def zappcode_academy_website_lead(request):
             resp[k] = v
         return resp
 
-    lead_source = LeadSource.objects.filter(hospital_id=7, name__iexact="Website").first()
+    lead_source = LeadSource.objects.filter(name__iexact="Website").first()
     if not lead_source:
-        lead_source = LeadSource.objects.create(
-            hospital=business,
-            name="Website",
-            source_type="ORGANIC",
-        )
-    elif getattr(lead_source, "source_type", None) != "ORGANIC":
-        lead_source.source_type = "ORGANIC"
-        lead_source.save(update_fields=["source_type"])
+        lead_source = LeadSource.objects.create(name="Website")
 
     campaign = Campaign.objects.filter(hospital_id=7, name__iexact="Zappcode Academy").first()
     if not campaign:
