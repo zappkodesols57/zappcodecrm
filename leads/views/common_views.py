@@ -5786,8 +5786,9 @@ def zappcode_academy_website_lead(request):
         if not course_obj:
             course_obj = Course.objects.filter(hospital_id=7, name__icontains=course_input).first()
 
+    from leads.models import Stage
     default_stage = (
-        PipelineStage.objects.filter(hospital_id=7, is_active=True)
+        Stage.objects.filter(hospital_id=7, is_active=True)
         .order_by("order", "id")
         .first()
     )
