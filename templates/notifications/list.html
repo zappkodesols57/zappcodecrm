@@ -3,11 +3,16 @@
 {% block title %}All Notifications{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="fw-bold text-dark">Notifications</h4>
-  <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="markAllAsRead()">
-    <i class="fa-solid fa-check-double me-1"></i> Mark All as Read
-  </button>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <h4 class="fw-bold text-dark mb-0">Notifications</h4>
+  <div class="d-flex align-items-center gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#soundSettingsModal">
+      <i class="fa-solid fa-volume-high me-1"></i> Sound Settings
+    </button>
+    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="markAllAsRead()">
+      <i class="fa-solid fa-check-double me-1"></i> Mark All as Read
+    </button>
+  </div>
 </div>
 
 <style>
@@ -218,6 +223,132 @@ function markAllAsRead() {
             window.location.reload();
         }
     });
+}
+</script>
+
+<!-- Sound Settings Modal -->
+<div class="modal fade" id="soundSettingsModal" tabindex="-1" aria-labelledby="soundSettingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+      <div class="modal-header py-2.5 px-3" style="background-color: #052042 !important;">
+        <h6 class="modal-title fw-bold mb-0 text-white" id="soundSettingsModalLabel" style="font-size: 0.92rem;">
+          <i class="fa-solid fa-volume-high me-2 text-info"></i>Notification Sound Settings
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-3">
+        <!-- Master Toggle: Allow All -->
+        <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 border mb-3" style="background: #f8fafc;">
+          <div>
+            <div class="fw-bold text-dark small">Allow All Notification Sounds</div>
+            <div class="text-muted" style="font-size: 0.74rem;">Enable or disable both voice &amp; reminder sounds together</div>
+          </div>
+          <div class="form-check form-switch m-0">
+            <input class="form-check-input" type="checkbox" id="toggleAllSounds" style="cursor: pointer; width: 2.5em; height: 1.3em;">
+          </div>
+        </div>
+
+        <!-- Individual 1: New Lead Voice -->
+        <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 border mb-2">
+          <div class="me-2">
+            <div class="fw-semibold text-dark small">New Lead / Web Enquiry Voice</div>
+            <div class="text-muted" style="font-size: 0.72rem;">Speaks "New web enquiry received"</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0.5" onclick="testNewLeadVoice()" title="Test Voice" style="font-size: 0.72rem;">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" id="toggleNewLeadVoice" style="cursor: pointer;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Individual 2: Reminder Chime -->
+        <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 border">
+          <div class="me-2">
+            <div class="fw-semibold text-dark small">Reminder &amp; Follow-up Sound</div>
+            <div class="text-muted" style="font-size: 0.72rem;">Plays soft 2-note chime alert</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0.5" onclick="testReminderSound()" title="Test Sound" style="font-size: 0.72rem;">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <div class="form-check form-switch m-0">
+              <input class="form-check-input" type="checkbox" id="toggleReminderSound" style="cursor: pointer;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top py-2.5">
+        <button type="button" class="btn btn-sm btn-primary" data-bs-dismiss="modal" style="background-color: #052042; border-color: #052042;">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const allToggle = document.getElementById("toggleAllSounds");
+  const leadToggle = document.getElementById("toggleNewLeadVoice");
+  const remToggle = document.getElementById("toggleReminderSound");
+  if (!allToggle || !leadToggle || !remToggle) return;
+
+  function syncUI() {
+    const leadOn = localStorage.getItem("crm_sound_new_lead") !== "false";
+    const remOn = localStorage.getItem("crm_sound_reminder") !== "false";
+    leadToggle.checked = leadOn;
+    remToggle.checked = remOn;
+    allToggle.checked = leadOn && remOn;
+  }
+
+  allToggle.addEventListener("change", function() {
+    const val = this.checked ? "true" : "false";
+    localStorage.setItem("crm_sound_new_lead", val);
+    localStorage.setItem("crm_sound_reminder", val);
+    syncUI();
+  });
+
+  leadToggle.addEventListener("change", function() {
+    localStorage.setItem("crm_sound_new_lead", this.checked ? "true" : "false");
+    syncUI();
+  });
+
+  remToggle.addEventListener("change", function() {
+    localStorage.setItem("crm_sound_reminder", this.checked ? "true" : "false");
+    syncUI();
+  });
+
+  syncUI();
+});
+
+function testNewLeadVoice() {
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance("New web enquiry received");
+    u.lang = "en-IN";
+    const voices = window.speechSynthesis.getVoices() || [];
+    const inVoice = voices.find(v => /en-in|india|heera|neerja|ravi|prabhat/i.test((v.lang || '') + ' ' + (v.name || '')));
+    if (inVoice) u.voice = inVoice;
+    window.speechSynthesis.speak(u);
+  }
+}
+
+function testReminderSound() {
+  try {
+    const c = new (window.AudioContext || window.webkitAudioContext)();
+    [587.33, 880].forEach((f, i) => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = "sine";
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.15, c.currentTime + i * 0.14);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + i * 0.14 + 0.35);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start(c.currentTime + i * 0.14);
+      o.stop(c.currentTime + i * 0.14 + 0.36);
+    });
+  } catch (e) {}
 }
 </script>
 {% endblock %}

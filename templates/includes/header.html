@@ -357,10 +357,41 @@
     }
 
     let lastSoundTime = 0;
-    function playThrottledAlertSound() {
+    function playThrottledAlertSound(notif) {
       const now = Date.now();
       if (now - lastSoundTime < 3000) return; // throttle audio chimes to at most once every 3s
       lastSoundTime = now;
+
+      const t = ((notif && notif.title) || '').toLowerCase();
+      const m = ((notif && notif.message) || '').toLowerCase();
+      const combined = t + ' ' + m;
+
+      // Strict check: only play "New web enquiry received" voice for genuine new lead / web enquiry notifications
+      const isNewLeadEnquiry = (
+        t.includes('new lead') ||
+        t.includes('web enquiry') ||
+        t.includes('website lead') ||
+        t.includes('new inquiry') ||
+        t.includes('new patient') ||
+        combined.includes('new web enquiry')
+      ) && !t.includes('follow') && !t.includes('reminder') && !t.includes('appointment') && !t.includes('transfer') && !t.includes('status');
+
+      if (isNewLeadEnquiry) {
+        if (localStorage.getItem('crm_sound_new_lead') === 'false') return;
+        if ('speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance("New web enquiry received");
+            u.lang = "en-IN";
+            const voices = window.speechSynthesis.getVoices() || [];
+            const inVoice = voices.find(v => /en-in|india|heera|neerja|ravi|prabhat/i.test((v.lang || '') + ' ' + (v.name || '')));
+            if (inVoice) u.voice = inVoice;
+            window.speechSynthesis.speak(u);
+            return;
+          } catch (e) {}
+        }
+      }
+      if (localStorage.getItem('crm_sound_reminder') === 'false') return;
       playLeadAlertSound();
     }
 
@@ -432,7 +463,7 @@
         setTimeout(() => toastEl.remove(), 10000);
       }
 
-      playThrottledAlertSound();
+      playThrottledAlertSound(n);
 
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification(n.title, {

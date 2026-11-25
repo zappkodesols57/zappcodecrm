@@ -1879,6 +1879,89 @@
       pointer-events: none !important;
     }
   
+  /* Modern Tab Hover & Active Styling + Mobile Dual-Dropdown */
+  .nav-tabs .nav-link,
+  .nav-pills .nav-link {
+    transition: all 0.2s ease;
+  }
+  .nav-tabs .nav-link:hover:not(.active),
+  .nav-pills .nav-link:hover:not(.active) {
+    background-color: #f1f5f9 !important;
+    color: #052042 !important;
+  }
+  .nav-tabs .nav-link.active,
+  .nav-pills .nav-link.active {
+    background: linear-gradient(135deg, #052042 0%, #0f3a6e 100%) !important;
+    color: #ffffff !important;
+    border-color: #052042 !important;
+    box-shadow: 0 4px 10px rgba(5, 32, 66, 0.22) !important;
+  }
+  .nav-tabs .nav-link.active .badge,
+  .nav-pills .nav-link.active .badge {
+    background-color: rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+  }
+  .mobile-tab-dropdown-wrap {
+    display: none;
+  }
+  @media (max-width: 767.98px) {
+    .mobile-tab-dropdown-wrap {
+      display: block !important;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .mobile-tab-dropdown-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      border: 1px solid #cbd5e1;
+      background: linear-gradient(135deg, #052042 0%, #0f3a6e 100%);
+      color: #ffffff;
+      box-shadow: 0 3px 10px rgba(5, 32, 66, 0.16);
+    }
+    .mobile-tab-dropdown-btn.subtab-btn {
+      background: #eff6ff;
+      color: #052042;
+      border-color: #bfdbfe;
+      box-shadow: none;
+      font-size: 0.82rem;
+      padding: 8px 14px;
+    }
+    .mobile-tab-dropdown-menu {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+      padding: 6px;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    .mobile-tab-dropdown-menu .dropdown-item {
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mobile-tab-dropdown-menu .dropdown-item.active,
+    .mobile-tab-dropdown-menu .dropdown-item:active {
+      background: #052042 !important;
+      color: #ffffff !important;
+    }
+    .mobile-tabs-hidden,
+    .mobile-tabs-hidden.d-flex,
+    ul.mobile-tabs-hidden,
+    div.mobile-tabs-hidden {
+      display: none !important;
+    }
+  }
+
   /* Ensure icons inside solid-colored action buttons are always crisp white */
   a[style*="background-color: #0ea5e9"] i,
   a[style*="background-color: #2563eb"] i,
@@ -2230,6 +2313,65 @@
 
   {% include "includes/footer.html" %}
   {% block extra_js %}{% endblock %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  if (!window.location.pathname.includes("/dashboard/")) return;
+  const candidates = Array.from(document.querySelectorAll("ul.nav-tabs, ul.nav-pills, .nav-tabs, .nav-pills, .academy-tabs-nav, .academy-subtabs-nav, ul.nav, .counselor-tabs, .telecaller-tabs, div.d-flex, ul.d-flex"));
+  const tabLists = candidates.filter(el => {
+    if (el.closest(".mobile-tab-dropdown-wrap") || el.closest("table") || el.closest(".modal")) return false;
+    const links = Array.from(el.children).map(c => c.matches("a, button") ? c : c.querySelector("a, button")).filter(Boolean);
+    if (links.length < 3) return false;
+    return links.some(l => l.classList.contains("nav-link") || (l.getAttribute("href") || "").includes("tab="));
+  });
+
+  tabLists.forEach((ul, idx) => {
+    if (ul.dataset.mobileDropdownInit) return;
+    ul.dataset.mobileDropdownInit = "1";
+    const links = Array.from(ul.children).map(c => c.matches("a, button") ? c : c.querySelector("a, button")).filter(Boolean);
+    const activeLink = links.find(l => l.classList.contains("active")) || links[0];
+    if (!activeLink) return;
+
+    const isMainTab = ul.id === "academyMainTabs" || ul.classList.contains("academy-tabs-nav") || idx === 0;
+    const isSubtab = !isMainTab && (ul.classList.contains("academy-subtabs-nav") || ul.classList.contains("nav-pills") || idx > 0);
+    const wrap = document.createElement("div");
+    wrap.className = "mobile-tab-dropdown-wrap dropdown";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mobile-tab-dropdown-btn dropdown-toggle" + (isSubtab ? " subtab-btn" : "");
+    btn.setAttribute("data-bs-toggle", "dropdown");
+    btn.setAttribute("aria-expanded", "false");
+    btn.innerHTML = `<span class="text-truncate">${activeLink.innerText.replace(/\s+/g, " ").trim()}</span>`;
+
+    const menu = document.createElement("ul");
+    menu.className = "dropdown-menu mobile-tab-dropdown-menu";
+
+    links.forEach(link => {
+      const li = document.createElement("li");
+      const item = document.createElement("a");
+      item.className = "dropdown-item" + (link.classList.contains("active") ? " active" : "");
+      item.href = link.getAttribute("href") || "#";
+      item.innerHTML = link.innerHTML;
+      item.addEventListener("click", function(e) {
+        if (!link.getAttribute("href") || link.getAttribute("href") === "#") {
+          e.preventDefault();
+          link.click();
+          btn.innerHTML = `<span class="text-truncate">${link.innerText.replace(/\s+/g, " ").trim()}</span>`;
+          menu.querySelectorAll(".dropdown-item").forEach(d => d.classList.remove("active"));
+          item.classList.add("active");
+        }
+      });
+      li.appendChild(item);
+      menu.appendChild(li);
+    });
+
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+    ul.classList.add("mobile-tabs-hidden");
+    ul.parentNode.insertBefore(wrap, ul);
+  });
+});
+</script>
 </body>
 
 </html>

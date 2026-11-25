@@ -2459,9 +2459,10 @@ def lost_leads(request):
     else:
         employees = employees.filter(role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.TELECALLER, User.Role.COUNSELOR])
 
-    bulk_stages = LeadStage.objects.filter(is_active=True)
     if business:
-        bulk_stages = bulk_stages.filter(Q(hospital=business) | Q(hospital__isnull=True))
+        bulk_stages = LeadStage.objects.filter(is_active=True, hospital=business).order_by("order", "name")
+    else:
+        bulk_stages = LeadStage.objects.filter(is_active=True).order_by("order", "name")
 
     context = {
         "active": "lost_leads",
