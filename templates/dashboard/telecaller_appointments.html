@@ -25,7 +25,7 @@
                     {% for apt in appointments %}
                     <tr>
                         <td class="px-4">
-                            <div class="fw-bold text-dark">{{ apt.lead.name }}</div>
+                            <div class="fw-bold text-dark"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ apt.lead.name }}</a></div>
                             <div class="small text-muted"><i class="fa-solid fa-phone me-1"></i> {{ apt.lead.mobile }}</div>
                             {% if apt.notes %}
                                 <div class="small text-secondary mt-1"><i class="fa-regular fa-comment-dots me-1"></i> {{ apt.notes }}</div>

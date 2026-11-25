@@ -564,47 +564,30 @@
                 <td>{% if lead.next_followup_date %}<span class="small text-nowrap">{{ lead.next_followup_date|date:"j F Y" }}</span>{% else %}—{% endif %}</td>
                 <td class="text-end">
                   <div class="d-inline-flex align-items-center gap-1">
-                    {% if not lead.assigned_to %}
-                    <!-- Capture Lead Button -->
-                    <button type="button"
-                      onclick="captureSingleLead('{% url 'leads:lead_self_assign' lead.pk %}?next={{ request.get_full_path|urlencode }}', '{{ lead.name|escapejs }}')"
-                      class="btn btn-xs btn-primary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-xs fw-semibold me-1"
-                      style="font-size: 0.72rem; height: 28px;" title="Capture & Assign to Me">
-                      <i class="fa-solid fa-hand-holding-hand"></i> Capture
-                    </button>
-                    {% endif %}
-
-                    <!-- View Detail & Followup Modal -->
-                    <a href="{% url 'leads:lead_detail' lead.pk %}"
-                      class="btn btn-sm btn-light border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}"
+                      class="btn btn-sm border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
                       style="width: 28px; height: 28px;" title="View Details">
                       <i class="fa-regular fa-eye" style="font-size: 0.72rem;"></i>
                     </a>
-
-                    <!-- Edit -->
-                    <a href="{% url 'leads:lead_edit' lead.pk %}"
-                      class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}"
+                      class="btn btn-sm border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
                       style="width: 28px; height: 28px;" title="Edit Lead">
                       <i class="fa-regular fa-pen-to-square" style="font-size: 0.72rem;"></i>
                     </a>
-
-                    {% if lead.mobile %}
-                      <!-- WhatsApp -->
-                      <a href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy."
+                    {% if not lead.assigned_to %}
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy."
                         target="_blank"
-                        class="btn btn-sm btn-light border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                        class="btn btn-sm border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
                         style="width: 28px; height: 28px;" title="WhatsApp {{ lead.name }}">
                         <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
                       </a>
-
-                      <!-- Direct Call -->
-                      <a href="tel:{{ lead.mobile }}"
-                        class="btn btn-sm btn-light border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.mobile }}"
+                        class="btn btn-sm border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
                         style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
                         <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
                       </a>
                     {% endif %}
-                  </div>
+                </div>
                 </td>
               </tr>
               {% empty %}
@@ -703,7 +686,7 @@
 
   <!-- Direct WhatsApp & Call & Close -->
   <div class="d-flex align-items-center gap-1 ms-1">
-    <a id="mbWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #22c55e; color: #ffffff;">
+    <a id="mbWaBtn" href="#" class="mb-btn" style="background: #22c55e; color: #ffffff;">
       WhatsApp
     </a>
     <a id="mbViewBtn" href="#" class="mb-btn" style="background: #475569; color: #ffffff;">

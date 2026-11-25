@@ -726,57 +726,35 @@
           {% endif %}
         </div>
       </div>
-      {% elif is_appointment_confirmed %}
-      <!-- Confirmed Appointment Banner with 'Add Next Appointment' Option -->
-      <div id="confirmedAppointmentCard" class="mb-3 p-3 rounded-3 bg-white border border-success shadow-sm">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom">
+      {% endif %}
+
+      <!-- Unified Patient Consultation & Appointments Hub Table -->
+      {% if all_appointments %}
+      <div class="mb-3 p-3 rounded-3 bg-white border border-primary-subtle shadow-xs">
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
           <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-success text-white px-2 py-1"><i class="fa-solid fa-calendar-check me-1"></i> Appointment Confirmed</span>
-            <span class="fw-bold text-dark fs-6">Dr. {{ latest_appointment.doctor_name|default:saved_initial.doctor|default:"Consultant" }}</span>
+            <span class="fw-bold text-dark fs-6">
+              <i class="fa-solid fa-calendar-check text-primary me-1"></i> Patient Appointments & Consultation Hub
+            </span>
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill">{{ all_appointments|length }} record(s)</span>
           </div>
-          <div class="d-flex align-items-center gap-2">
-            <button type="button" id="btnNextAppointment" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm"
+          <div>
+            <button type="button" id="btnNextAppointment" class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs"
               onclick="toggleBookNextAppointment()">
-              <i class="fa-solid fa-plus-circle me-1"></i> Add Next Appointment
+              <i class="fa-solid fa-circle-plus me-1"></i> Add Next Appointment
             </button>
           </div>
         </div>
-        <div class="row g-2 align-items-center">
-          <div class="col-sm-4">
-            <small class="text-muted d-block">Appointment Date:</small>
-            <span class="fw-bold text-dark"><i class="fa-solid fa-calendar-day text-primary me-1"></i> {{ latest_appointment.appointment_date|default:saved_initial.appo_booked_date|default:"Scheduled" }}</span>
-          </div>
-          <div class="col-sm-4">
-            <small class="text-muted d-block">Scheduled Slot / Time:</small>
-            <span class="fw-bold text-success"><i class="fa-solid fa-clock text-success me-1"></i> {{ latest_appointment.appointment_time|time:"h:i A"|default:saved_initial.appointment_time|default:"Slot Booked" }}</span>
-          </div>
-          <div class="col-sm-4">
-            <small class="text-muted d-block">Status:</small>
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2 py-1">
-              <i class="fa-solid fa-check-circle me-1"></i> {{ latest_appointment.get_status_display|default:"Payment Done / Confirmed" }}
-            </span>
-          </div>
-        </div>
-      </div>
-      {% endif %}
 
-      <!-- Past Appointments & Consultation History (if lead has past completed appointments) -->
-      {% if all_appointments %}
-      <div class="mb-3 p-3 rounded-3 bg-white border shadow-none">
-        <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-          <span class="small fw-bold text-secondary">
-            <i class="fa-solid fa-clock-rotate-left text-primary me-1"></i> Patient Consultation & Appointment History
-          </span>
-          <span class="badge bg-light text-muted border">{{ all_appointments|length }} record(s)</span>
-        </div>
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
             <thead class="table-light">
               <tr>
-                <th>Appointment Date & Time</th>
+                <th style="min-width: 170px;">Appointment Slot</th>
                 <th>Doctor</th>
                 <th>Status</th>
                 <th>Rescheduling & Remarks</th>
+                <th class="text-center" style="width: 110px;">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -787,14 +765,14 @@
                     <span><i class="fa-regular fa-calendar me-1 text-primary"></i>{{ apt.appointment_date|date:"d M Y" }}</span>
                     {% if apt.appointment_time %}<span class="text-dark fw-semibold ms-1">({{ apt.appointment_time|time:"h:i A" }})</span>{% endif %}
                     {% if apt.is_rescheduled %}
-                      <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle rounded-pill ms-1" style="font-size: 0.68rem;">Rescheduled</span>
-                    {% else %}
-                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle rounded-pill ms-1" style="font-size: 0.68rem;">Booked</span>
+                      <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle rounded-pill ms-1" style="font-size: 0.68rem;"><i class="fa-solid fa-arrows-rotate me-1 text-warning"></i>Rescheduled</span>
+                    {% elif apt.status == 'APPROVED' %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill ms-1" style="font-size: 0.68rem;">Upcoming</span>
                     {% endif %}
                   </div>
                   {% if apt.is_rescheduled and apt.rescheduled_from_date %}
                   <div class="small text-muted mt-0.5" style="font-size: 0.73rem;">
-                    <i class="fa-solid fa-arrow-right-arrow-left me-1 text-warning"></i>Rescheduled from: <span class="text-decoration-line-through text-muted">{{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}</span>
+                    <i class="fa-solid fa-arrow-right-arrow-left me-1 text-warning"></i>From: <span class="text-decoration-line-through text-muted">{{ apt.rescheduled_from_date|date:"d M Y" }}{% if apt.rescheduled_from_time %} ({{ apt.rescheduled_from_time|time:"h:i A" }}){% endif %}</span>
                   </div>
                   {% endif %}
                 </td>
@@ -807,7 +785,7 @@
                   {% elif apt.status == 'SCHEDULED' %}
                     <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle"><i class="fa-solid fa-calendar-days me-1"></i>Next Follow-up</span>
                   {% elif apt.status == 'PENDING_APPROVAL' %}
-                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Pending Doctor</span>
+                    <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle"><i class="fa-solid fa-hourglass-half me-1"></i>Pending Call Confirmation</span>
                   {% else %}
                     <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ apt.get_status_display }}</span>
                   {% endif %}
@@ -817,6 +795,17 @@
                     <div class="text-dark small fw-medium mb-0.5" style="font-size: 0.76rem;">Rescheduled to {{ apt.appointment_date|date:"d M Y" }}{% if apt.appointment_time %} at {{ apt.appointment_time|time:"h:i A" }}{% endif %}</div>
                   {% endif %}
                   <span style="font-size: 0.78rem;">{{ apt.doctor_notes|default:apt.notes|default:"—" }}</span>
+                </td>
+                <td class="text-center">
+                  {% if apt.status != 'COMPLETED' %}
+                  <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 fw-medium"
+                    style="font-size: 0.75rem;"
+                    onclick="editAppointmentSlot('{{ apt.id }}', '{{ apt.appointment_date|date:"Y-m-d" }}', '{{ apt.appointment_time|time:"H:i" }}', '{{ apt.doctor_name|escapejs }}')">
+                    <i class="fa-solid fa-calendar-days me-1"></i> Edit Slot
+                  </button>
+                  {% else %}
+                  <span class="text-muted small" style="font-size: 0.75rem;">—</span>
+                  {% endif %}
                 </td>
               </tr>
               {% endfor %}
@@ -831,10 +820,12 @@
       <!-- ================================================================= -->
       <!-- 1. Booking Section: Hospital Branch, Department, Disease, Doctor, Date, Slot Calendar -->
       <div id="bookedFieldsContainer" style="display: none;" class="mb-3 p-3 rounded-3 bg-light border border-primary-subtle shadow-xs">
+        <input type="hidden" name="appointment_action" id="id_appointment_action" value="reschedule">
+        <input type="hidden" name="target_appointment_id" id="id_target_appointment_id" value="">
         <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
           <h6 class="fw-bold text-dark mb-0">
             <i class="fa-solid fa-hospital-user text-primary me-1"></i>
-            {% if latest_appointment or is_appointment_confirmed %}Book Next Appointment / Consultation{% else %}Doctor Booking & Appointment Slot Details{% endif %}
+            <span id="bookingSectionTitle">{% if latest_appointment or is_appointment_confirmed %}Book Next Appointment / Consultation{% else %}Doctor Booking & Appointment Slot Details{% endif %}</span>
           </h6>
           {% if latest_appointment or is_appointment_confirmed %}
           <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2"
@@ -983,6 +974,21 @@
           <div class="col-md-4">
             <label class="form-label small fw-bold text-dark">Follow-up Remark <span class="text-danger">*</span></label>
             {{ form.followup_remark }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.1 Follow-up Done Remark Container -->
+      <div id="followupDoneContainer" style="display: none;"
+        class="mb-3 p-3 rounded-3 bg-success bg-opacity-10 border border-success-subtle">
+        <div class="d-flex align-items-center gap-2 mb-2 text-success fw-bold small">
+          <i class="fa-solid fa-clipboard-check"></i> Follow-up Completion Note / Remark
+        </div>
+        <div class="row g-2">
+          <div class="col-12">
+            <label class="form-label small fw-bold text-dark">Follow-up Outcome / Remark <span class="text-danger">*</span></label>
+            <textarea name="followup_done_remark" id="id_followup_done_remark" rows="2" class="form-control" placeholder="Enter follow-up conversation outcome / notes..."></textarea>
+            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">All scheduled pending follow-ups for this lead will be marked as Completed.</small>
           </div>
         </div>
       </div>
@@ -1234,20 +1240,18 @@
           <span class="text-muted">Mobile: <strong class="text-dark" id="modalPatientMobile">—</strong></span>
         </div>
       </div>
-      <div class="modal-footer border-top py-2 px-4 bg-light rounded-bottom-4 d-flex justify-content-between">
-        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+      <div class="modal-footer border-top py-2 px-4 bg-light rounded-bottom-4 d-flex justify-content-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
           Cancel
         </button>
-        <div class="d-flex gap-2">
-          <!-- Option 1: Save Lead (Only Save) -->
-          <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" id="btnModalSaveOnly" onclick="submitLeadForm(false)">
-            Save Lead
-          </button>
-          <!-- Option 2: Save & Send WhatsApp Message -->
-          <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" id="btnModalSaveWhatsApp" onclick="submitLeadForm(true)" style="display: none;">
-            Save & Send WhatsApp
-          </button>
-        </div>
+        <!-- Option 1: Save Lead (Only Save) -->
+        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-4 fw-semibold" id="btnModalSaveOnly" onclick="submitLeadForm(false)">
+          Save Lead
+        </button>
+        <!-- Option 2: Save & Send WhatsApp Message -->
+        <button type="button" class="btn btn-sm btn-success rounded-pill px-4 fw-semibold" id="btnModalSaveWhatsApp" onclick="submitLeadForm(true)" style="display: none;">
+          Save & Send WhatsApp
+        </button>
       </div>
     </div>
   </div>
@@ -1433,18 +1437,70 @@
     }
   };
 
+  window.editAppointmentSlot = function (aptId, aptDate, aptTime, docName) {
+    window._manualBookingToggled = true;
+    const actionInput = document.getElementById('id_appointment_action');
+    const targetAptInput = document.getElementById('id_target_appointment_id');
+    const titleEl = document.getElementById('bookingSectionTitle');
+    if (actionInput) actionInput.value = 'reschedule';
+    if (targetAptInput) targetAptInput.value = aptId || '';
+    if (titleEl) titleEl.innerText = 'Reschedule Appointment Slot';
+
+    if (bookedContainer) {
+      bookedContainer.style.display = 'block';
+      if (appoDateInput) {
+        appoDateInput.value = aptDate;
+      }
+      if (appoTimeInput) {
+        appoTimeInput.value = aptTime;
+      }
+      if (doctorSelect) {
+        if (doctorSelect.tomselect) {
+          doctorSelect.tomselect.setValue(docName, true);
+        } else {
+          doctorSelect.value = docName;
+        }
+      }
+      if (appStatusSelect) {
+        if (appStatusSelect.tomselect) {
+          appStatusSelect.tomselect.setValue('Appointment Booking', true);
+        } else {
+          appStatusSelect.value = 'Appointment Booking';
+        }
+      }
+      fetchDoctorSlots();
+      if (aptTime) {
+        lockSelectedSlot(aptTime, aptTime);
+      }
+      bookedContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
   window.toggleBookNextAppointment = function (show = true) {
     window._manualBookingToggled = show;
+    const actionInput = document.getElementById('id_appointment_action');
+    const targetAptInput = document.getElementById('id_target_appointment_id');
+    const titleEl = document.getElementById('bookingSectionTitle');
+    if (actionInput) actionInput.value = 'add_next';
+    if (targetAptInput) targetAptInput.value = '';
+    if (titleEl) titleEl.innerText = 'Book Next Appointment / Consultation';
+
     if (bookedContainer) {
       bookedContainer.style.display = show ? 'block' : 'none';
       if (show) {
         if (appoDateInput) {
+          appoDateInput.value = '';
           appoDateInput.focus();
         }
+        if (appoTimeInput) {
+          appoTimeInput.value = '';
+        }
+        const banner = document.getElementById('selectedSlotBanner');
+        if (banner) banner.style.setProperty('display', 'none', 'important');
         if (appStatusSelect && appStatusSelect.tomselect) {
-          appStatusSelect.tomselect.setValue('Booking', true);
+          appStatusSelect.tomselect.setValue('Appointment Booking', true);
         } else if (appStatusSelect) {
-          appStatusSelect.value = 'Booking';
+          appStatusSelect.value = 'Appointment Booking';
         }
         fetchDoctorSlots();
         bookedContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1464,8 +1520,9 @@
     const isIpdBooking = !isCancelling && (combinedVal.includes('IPD BOOKING') || combinedVal.includes('IPD_BOOKING'));
     const isIpdDone = !isCancelling && (combinedVal.includes('IPD DONE') || combinedVal.includes('IPD_DONE'));
     
-    // Appointment / OPD Booking Check: strictly for Appointment Booking / OPD Booking
-    const isBooking = !isCancelling && !isIpdBooking && !isIpdDone && (combinedVal.includes('APPOINTMENT BOOKING') || combinedVal.includes('OPD BOOKING') || combinedVal.includes('BOOKING') || combinedVal.includes('CONFIRM') || combinedVal.includes('SLOT'));
+    // Appointment Booking or Rescheduled Check
+    const isRescheduled = !isCancelling && (combinedVal.includes('RESCHEDULE') || combinedVal.includes('RESCHEDULED'));
+    const isBooking = !isCancelling && !isIpdBooking && !isIpdDone && (isRescheduled || combinedVal.includes('APPOINTMENT BOOKING') || combinedVal.includes('OPD BOOKING') || combinedVal.includes('BOOKING') || combinedVal.includes('CONFIRM') || combinedVal.includes('SLOT'));
     
     const isFollowupDone = combinedVal.includes('FOLLOW UP DONE') || combinedVal.includes('FOLLOW-UP DONE') || combinedVal.includes('FOLLOWUP DONE');
     const isFollowup = !isCancelling && !isBooking && !isIpdBooking && !isIpdDone && !isFollowupDone && (combinedVal.includes('FOLLOW') || combinedVal.includes('WAIT') || combinedVal.includes('CALL') || combinedVal.includes('LATER') || combinedVal.includes('INTEREST') || combinedVal.includes('NEED'));
@@ -1516,6 +1573,12 @@
     if (isFollowup && typeof updateFollowupTimeConstraints === 'function') {
       updateFollowupTimeConstraints();
     }
+  }
+
+  // 3.1 Follow-up Done Remark Box
+  const fuDoneBox = document.getElementById('followupDoneContainer');
+  if (fuDoneBox) {
+    fuDoneBox.style.display = isFollowupDone ? 'block' : 'none';
   }
 
   // 4. Reason for Cancellation / Not Interested Box
@@ -2233,6 +2296,20 @@
       if (fuDateInput) fuDateInput.removeAttribute('required');
       const fuRemarkIn = document.querySelector('textarea[name="followup_remark"], input[name="followup_remark"]');
       if (fuRemarkIn) fuRemarkIn.removeAttribute('required');
+    }
+
+    if (isFollowupDone) {
+      const fuDoneRemarkIn = document.querySelector('textarea[name="followup_done_remark"], input[name="followup_done_remark"]');
+      if (fuDoneRemarkIn && !fuDoneRemarkIn.value.trim()) {
+        fuDoneRemarkIn.setCustomValidity('Follow-up completion note / remark is required.');
+        fuDoneRemarkIn.reportValidity();
+        return;
+      } else if (fuDoneRemarkIn) {
+        fuDoneRemarkIn.setCustomValidity('');
+      }
+    } else {
+      const fuDoneRemarkIn = document.querySelector('textarea[name="followup_done_remark"], input[name="followup_done_remark"]');
+      if (fuDoneRemarkIn) fuDoneRemarkIn.removeAttribute('required');
     }
 
     if (isBooking) {

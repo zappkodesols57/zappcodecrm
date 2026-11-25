@@ -3309,6 +3309,7 @@ def _get_lead_or_redirect(request, pk):
 @login_required
 def lead_edit(request, pk):
     from django.utils import timezone
+    from leads.models import Appointment, AppointmentStatus
     lead = _get_lead_or_redirect(request, pk)
     if not lead:
         if request.user.role == User.Role.DOCTOR:
@@ -3551,12 +3552,23 @@ def lead_edit(request, pk):
                     link=f"/leads/{saved_lead.pk}/",
                 )
 
-            # 2. Appointment Synchronization & Doctor Notification
+            # 2. Doctor Notification & Calendar Synchronization (Appointment object creation is handled cleanly in HospitalLeadForm)
             from datetime import datetime
             raw_appo_date = cd.get("appo_booked_date") or cd.get("appointment_date")
             raw_appo_time = cd.get("appointment_time")
             doctor_name = cd.get("doctor", "").strip()
             apt_st_raw = (cd.get("appointment_status") or "").strip()
+
+            def _format_time(t):
+                if not t:
+                    return 'Slot not fixed'
+                if hasattr(t, 'strftime'):
+                    return t.strftime('%I:%M %p')
+                try:
+                    from datetime import datetime as dt_cls
+                    return dt_cls.strptime(str(t).strip()[:5], '%H:%M').strftime('%I:%M %p')
+                except Exception:
+                    return str(t)
 
             if raw_appo_date and is_lead_hospital_type:
                 try:
@@ -3565,7 +3577,6 @@ def lead_edit(request, pk):
                     parsed_apt_date = None
 
                 if parsed_apt_date:
-                    # Find doctor user
                     doc_user = None
                     if doctor_name:
                         doc_user = User.objects.filter(
@@ -3577,116 +3588,26 @@ def lead_edit(request, pk):
                             Q(last_name__icontains=doctor_name)
                         ).first()
 
-                    # Find existing latest appointment
-                    existing_apt = Appointment.objects.filter(lead=saved_lead).order_by('-id').first()
-                    
-                    # Determine if slot changed from previous appointment
-                    slot_is_same = False
-                    if existing_apt:
-                        date_same = (existing_apt.appointment_date == parsed_apt_date)
-                        time_same = True
-                        if raw_appo_time and existing_apt.appointment_time:
-                            time_same = (str(existing_apt.appointment_time)[:5] == str(raw_appo_time)[:5])
-                        slot_is_same = (date_same and time_same)
+                    latest_apt = Appointment.objects.filter(lead=saved_lead).order_by('-id').first()
+                    time_str = _format_time(raw_appo_time or (latest_apt.appointment_time if latest_apt else None))
+                    doc_display_name = doctor_name if doctor_name.lower().startswith('dr') else f"Dr. {doctor_name}" if doctor_name else "Consulting Doctor"
 
-                    # Track previous slot for rescheduling detection
-                    prev_date = existing_apt.appointment_date if existing_apt else None
-                    prev_time = existing_apt.appointment_time if existing_apt else None
-                    was_rescheduled = False
-
-                    # Check if telecaller is confirming slot set by doctor (only if appointment is in SCHEDULED/PENDING state, NOT if CANCELLED by doctor)
-                    if any(k in apt_st_raw.lower() for k in ['confirm', 'book', 'yes']) and not is_won:
-                        from followups.models import Activity, ActivityType
-                        doc_display_name = doctor_name if doctor_name.lower().startswith('dr') else f"Dr. {doctor_name}" if doctor_name else "Consulting Doctor"
-
-                        if slot_is_same and existing_apt and existing_apt.status == AppointmentStatus.SCHEDULED:
-                            # Slot kept exactly as doctor setup -> auto-approve without asking doctor for re-approval
-                            existing_apt.status = AppointmentStatus.APPROVED
-                            existing_apt.save(update_fields=['status'])
-                            cd['appointment_status'] = 'Booking Confirmed'
-                            cd['appointment_confirmed_at'] = timezone.now().strftime('%Y-%m-%d %H:%M')
-                            saved_lead.custom_data = cd
-                            saved_lead.save(update_fields=['custom_data'])
-
-                            time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
-                            Activity.objects.create(
-                                lead=saved_lead,
-                                created_by=request.user,
-                                activity_type=ActivityType.NOTE,
-                                description=f"Appointment Confirmed with {doc_display_name} for {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
-                            )
-
-                            if doc_user and doc_user != request.user:
-                                Notification.objects.create(
-                                    user=doc_user,
-                                    title="Next Appointment Confirmed from Patient",
-                                    message=f"Telecaller confirmed patient {saved_lead.name}'s appointment for {parsed_apt_date.strftime('%d %b %Y')} at {time_str}. Confirmed in your appointments tab.",
-                                    link="/dashboard/doctor/",
-                                )
-                        else:
-                            # Slot was changed or is new -> needs Doctor Approval confirmation
-                            if existing_apt and existing_apt.status != AppointmentStatus.COMPLETED:
-                                if not slot_is_same:
-                                    was_rescheduled = True
-                                    existing_apt.is_rescheduled = True
-                                    existing_apt.rescheduled_from_date = prev_date
-                                    existing_apt.rescheduled_from_time = prev_time
-
-                                existing_apt.appointment_date = parsed_apt_date
-                                if raw_appo_time:
-                                    existing_apt.appointment_time = raw_appo_time
-                                if doc_user:
-                                    existing_apt.doctor_user = doc_user
-                                if doctor_name:
-                                    existing_apt.doctor_name = doctor_name
-                                existing_apt.status = AppointmentStatus.PENDING_APPROVAL
-                                existing_apt.save(update_fields=['appointment_date', 'appointment_time', 'doctor_user', 'doctor_name', 'status', 'is_rescheduled', 'rescheduled_from_date', 'rescheduled_from_time'])
-                            else:
-                                existing_apt = Appointment.objects.create(
-                                    lead=saved_lead,
-                                    hospital=saved_lead.hospital,
-                                    doctor_name=doctor_name or "Consulting Doctor",
-                                    doctor_user=doc_user,
-                                    appointment_date=parsed_apt_date,
-                                    appointment_time=raw_appo_time if raw_appo_time else None,
-                                    status=AppointmentStatus.PENDING_APPROVAL,
-                                    created_by=request.user
-                                )
-
-                            time_str = existing_apt.appointment_time.strftime('%I:%M %p') if existing_apt.appointment_time else 'Slot not fixed'
-                            if was_rescheduled and prev_date:
-                                prev_time_str = prev_time.strftime('%I:%M %p') if prev_time else 'Slot not fixed'
-                                Activity.objects.create(
-                                    lead=saved_lead,
-                                    created_by=request.user,
-                                    activity_type=ActivityType.NOTE,
-                                    description=f"Appointment Rescheduled for {saved_lead.name} with {doc_display_name} from {prev_date.strftime('%d %b %Y')} ({prev_time_str}) to {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
-                                )
-                            else:
-                                Activity.objects.create(
-                                    lead=saved_lead,
-                                    created_by=request.user,
-                                    activity_type=ActivityType.NOTE,
-                                    description=f"Appointment Booked with {doc_display_name} for {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
-                                )
-
-                            if doc_user and doc_user != request.user:
-                                notif_title = "Appointment Rescheduled / Slot Changed" if was_rescheduled else "New Appointment Request"
-                                notif_msg = (
-                                    f"Appointment for patient {saved_lead.name} rescheduled with {doc_display_name} from {prev_date.strftime('%d %b %Y')} to {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
-                                    if was_rescheduled and prev_date else
-                                    f"Telecaller booked appointment for patient {saved_lead.name} on {parsed_apt_date.strftime('%d %b %Y')} at {time_str}. Please review and approve."
-                                )
-                                Notification.objects.create(
-                                    user=doc_user,
-                                    title=notif_title,
-                                    message=notif_msg,
-                                    link="/dashboard/doctor/",
-                                )
+                    if doc_user and doc_user != request.user:
+                        was_resched = latest_apt.is_rescheduled if latest_apt else False
+                        notif_title = "Appointment Rescheduled / Slot Changed" if was_resched else "New Appointment Booked"
+                        notif_msg = (
+                            f"Appointment for patient {saved_lead.name} scheduled with {doc_display_name} on {parsed_apt_date.strftime('%d %b %Y')} at {time_str}."
+                        )
+                        Notification.objects.create(
+                            user=doc_user,
+                            title=notif_title,
+                            message=notif_msg,
+                            link="/dashboard/doctor/",
+                        )
             else:
                 apt = Appointment.objects.filter(lead=saved_lead).order_by('-id').first()
                 if apt and apt.doctor_user and apt.doctor_user != request.user:
-                    time_str = apt.appointment_time.strftime('%I:%M %p') if apt.appointment_time else 'Slot not fixed'
+                    time_str = _format_time(apt.appointment_time)
                     Notification.objects.create(
                         user=apt.doctor_user,
                         title="Appointment Update",
@@ -3925,7 +3846,7 @@ def lead_detail(request, pk):
     related_lead_ids = list(set(related_lead_ids))
 
     timeline = Activity.objects.filter(lead_id__in=related_lead_ids).order_by("-created_at")[:200]
-    followups = lead.followups.select_related("created_by").all()[:50]
+    followups = lead.followups.select_related("created_by").order_by("-id")[:50]
     admission = getattr(lead, "admission", None)
     
     # Check lead's own organization business_type (Hospital vs Academy) strictly by industry

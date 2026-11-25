@@ -1338,7 +1338,7 @@
     }
 
     const targetUrl = `/dashboard/card-drilldown/?${drillParams.toString()}`;
-    window.open(targetUrl, '_blank');
+    window.location.href = targetUrl;
   }
 
   function openUniversalCardDrilldown(cardType, cardTitle, badgeColor) {

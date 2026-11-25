@@ -29,7 +29,7 @@
             </td>
             <td class="px-3">
               <div class="fw-bold text-dark">
-                <a href="{% url 'leads:lead_detail' l.pk %}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark hover-primary">
+                <a href="{% url 'leads:lead_detail' l.pk %}" class="text-decoration-none text-dark hover-primary">
                   {{ l.name }}
                 </a>
               </div>
@@ -100,19 +100,19 @@
             </td>
             <td class="px-3 text-end text-nowrap">
               <div class="d-inline-flex gap-1 align-items-center">
-                <a href="tel:{{ l.mobile }}" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1" title="Call">
-                  <i class="fa-solid fa-phone"></i>
-                </a>
-                <a href="https://wa.me/91{{ l.clean_phone_number|default:l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1" title="WhatsApp">
-                  <i class="fa-brands fa-whatsapp"></i>
-                </a>
-                <a href="{% url 'leads:lead_edit' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit">
-                  <i class="fa-solid fa-pen-to-square"></i>
-                </a>
-                <a href="{% url 'leads:lead_detail' l.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1" title="View Details">
+                <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-xs rounded-pill px-2 py-1" title="View Details">
                   <i class="fa-solid fa-eye"></i>
                 </a>
-              </div>
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' l.pk %}" class="btn btn-xs rounded-pill px-2 py-1" title="Edit">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </a>
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ l.clean_phone_number|default:l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1" title="WhatsApp">
+                  <i class="fa-brands fa-whatsapp"></i>
+                </a>
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ l.mobile }}" class="btn btn-xs rounded-pill px-2 py-1" title="Call">
+                  <i class="fa-solid fa-phone"></i>
+                </a>
+                </div>
             </td>
           </tr>
         {% empty %}

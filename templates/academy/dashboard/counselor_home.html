@@ -859,7 +859,7 @@
             <tbody>
               {% for l in p_lost.object_list %}
                 <tr data-lead-id="{{ l.pk }}" data-lead-name="{{ l.name }}" data-lead-phone="{{ l.mobile }}" data-detail-url="{% url 'leads:lead_detail' l.pk %}" class="counselor-table-row">
-                  <td class="fw-bold">{{ l.name }}</td>
+                  <td class="fw-bold"><a href="{% url 'leads:lead_detail' l.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ l.name }}</a></td>
                   <td>{{ l.mobile }}</td>
                   <td>{{ l.course.name|default:"—" }}</td>
                   <td class="text-danger fw-semibold">{{ l.lost_reason }}</td>
@@ -867,19 +867,19 @@
                   <td>{{ l.lost_closing_date|date:"d M Y" }}</td>
                   <td class="text-end">
                     <div class="d-inline-flex gap-1 align-items-center">
-                      <a href="tel:{{ l.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
-                        <i class="fa-solid fa-phone"></i>
-                      </a>
-                      <a href="https://wa.me/91{{ l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon" title="WhatsApp">
-                        <i class="fa-brands fa-whatsapp"></i>
-                      </a>
-                      <a href="{% url 'leads:lead_edit' l.pk %}" class="btn btn-sm btn-outline-secondary action-btn-icon" title="Edit Lead">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                      </a>
-                      <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-dark action-btn-icon" title="View Lead">
+                      <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm action-btn-icon" title="View Lead">
                         <i class="fa-solid fa-eye"></i>
                       </a>
-                    </div>
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' l.pk %}" class="btn btn-sm action-btn-icon" title="Edit Lead">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </a>
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ l.mobile }}?text=Hello%20{{ l.name|urlencode }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm action-btn-icon" title="WhatsApp">
+                        <i class="fa-brands fa-whatsapp"></i>
+                      </a>
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ l.mobile }}" class="btn btn-sm action-btn-icon" title="Call">
+                        <i class="fa-solid fa-phone"></i>
+                      </a>
+                </div>
                   </td>
                 </tr>
               {% empty %}
@@ -929,7 +929,7 @@
 
   <!-- Direct WhatsApp & Call & Close -->
   <div class="d-flex align-items-center gap-1 ms-1">
-    <a id="mbWaBtn" href="#" target="_blank" rel="noopener noreferrer" class="mb-btn" style="background: #22c55e; color: #ffffff;">
+    <a id="mbWaBtn" href="#" class="mb-btn" style="background: #22c55e; color: #ffffff;">
       WhatsApp
     </a>
     <a id="mbViewBtn" href="#" class="mb-btn" style="background: #475569; color: #ffffff;">

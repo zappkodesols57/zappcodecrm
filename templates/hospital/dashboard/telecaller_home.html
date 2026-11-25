@@ -736,7 +736,7 @@
                                             </td>
                                             {% endif %}
                                             <td class="px-4">
-                                                <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                                                <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                                                     {{ lead.name }}
                                                 </a>
                                             </td>
@@ -761,26 +761,21 @@
                                                 <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
                                             </td>
                                             <td class="px-4 text-end text-nowrap">
-                                                {% if can_self_assign %}
-                                                <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 me-1 shadow-xs fw-bold" onclick="captureLeadFromTable({{ lead.pk }}, '{{ lead.name|escapejs }}')" title="Capture & Assign to Me">
-                                                    <i class="fa-solid fa-hand-holding-hand me-1"></i> Capture
-                                                </button>
-                                                {% endif %}
-                                                <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                                                <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
                                                     <i class="fa-solid fa-eye"></i>
                                                 </a>
-                                                <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
                                                     <i class="fa-solid fa-pen-to-square"></i>
                                                 </a>
-                                                {% if lead.clean_phone_number %}
-                                                <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                    {% if can_self_assign %}
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                                                     <i class="fa-brands fa-whatsapp"></i>
                                                 </a>
-                                                <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                                                     <i class="fa-solid fa-phone"></i>
                                                 </a>
-                                                {% endif %}
-                                            </td>
+                    {% endif %}
+                </td>
                                         </tr>
                                         {% empty %}
                                         <tr>
@@ -1741,7 +1736,7 @@
         }
 
         const targetUrl = `/dashboard/card-drilldown/?${drillParams.toString()}`;
-        window.open(targetUrl, '_blank');
+        window.location.href = targetUrl;
     }
 
     function drilldownSetMode(mode) {
@@ -3455,7 +3450,7 @@
 
     <!-- Open Lead Detail in New Tab -->
     <div class="d-flex align-items-center gap-1 ms-1">
-        <a id="microbarViewBtn" href="#" target="_blank" rel="noopener noreferrer" class="microbar-btn microbar-btn-view" title="Open Full Lead Profile">
+        <a id="microbarViewBtn" href="#" class="microbar-btn microbar-btn-view" title="Open Full Lead Profile">
             <i class="fa-solid fa-arrow-up-right-from-square"></i> Full Profile
         </a>
         <button type="button" class="microbar-btn-close ms-1" onclick="dismissMicrobar()" title="Close Bar">

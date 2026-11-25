@@ -28,22 +28,22 @@
   </td>
   <td class="text-end">
     <div class="d-inline-flex gap-1 align-items-center">
-      <a href="tel:{{ lead.mobile }}" class="btn btn-sm btn-outline-primary action-btn-icon" title="Call">
-        <i class="fa-solid fa-phone"></i>
-      </a>
-      <a href="https://wa.me/91{{ lead.clean_phone_number|default:lead.mobile }}?text={{ lead.whatsapp_message }}"
-        target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-success action-btn-icon"
-        title="WhatsApp">
-        <i class="fa-brands fa-whatsapp"></i>
-      </a>
-      <a href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary action-btn-icon"
-        title="Edit Lead">
-        <i class="fa-solid fa-pen-to-square"></i>
-      </a>
-      <a href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm btn-outline-dark action-btn-icon"
+      <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-sm action-btn-icon"
         title="View Lead">
         <i class="fa-solid fa-eye"></i>
       </a>
-    </div>
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-sm action-btn-icon"
+        title="Edit Lead">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </a>
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number|default:lead.mobile }}?text={{ lead.whatsapp_message }}"
+        target="_blank" rel="noopener noreferrer" class="btn btn-sm action-btn-icon"
+        title="WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i>
+      </a>
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.mobile }}" class="btn btn-sm action-btn-icon" title="Call">
+        <i class="fa-solid fa-phone"></i>
+      </a>
+                </div>
   </td>
 </tr>

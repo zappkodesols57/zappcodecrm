@@ -353,8 +353,8 @@
       </thead>
       <tbody>
         {% for lead in recent_leads %}
-        <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
-          <td class="ps-3 fw-semibold text-dark">{{ lead.name }}</td>
+        <tr class="lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
+          <td class="ps-3 fw-semibold text-dark"><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ lead.name }}</a></td>
           <td class="text-muted">{{ lead.mobile }}</td>
           <td>
             {% if is_hospital_business %}

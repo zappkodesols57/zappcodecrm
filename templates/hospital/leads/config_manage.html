@@ -61,7 +61,7 @@
             </a>
           </li>
           <li>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_pdf' %}" target="_blank">
+            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'leads:hospital_config_export_pdf' %}">
               <i class="fa-solid fa-file-pdf text-danger fs-6"></i>
               <div>
                 <div class="fw-semibold">Export as PDF / Print</div>
@@ -672,7 +672,7 @@
               <div id="doc_user_sync_hint" class="small mt-1" style="display: none;"></div>
               {% if not doctor_users %}
               <div class="alert alert-warning py-2 px-3 small mt-2 mb-0 rounded-3">
-                <i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>No Doctor users found.</strong> Please create a Doctor in <a href="{% url 'accounts:user_add' %}" target="_blank" class="alert-link fw-bold">User Management</a>.
+                <i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>No Doctor users found.</strong> Please create a Doctor in <a href="{% url 'accounts:user_add' %}" class="alert-link fw-bold">User Management</a>.
               </div>
               {% endif %}
             </div>

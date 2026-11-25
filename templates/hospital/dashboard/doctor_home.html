@@ -485,7 +485,7 @@
                   {% for apt in today_apts %}
                   <tr>
                     <td class="ps-4">
-                      <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
+                      <strong class="text-dark d-block"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ apt.lead.name }}</a></strong>
                       <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
                     </td>
                     <td>
@@ -520,7 +520,7 @@
                     </td>
                     <td class="pe-4 text-end text-nowrap">
                       <!-- 1. View Form (Read-only Patient Review) -->
-                      <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
+                      <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
                         <i class="fa-solid fa-eye me-1 text-primary"></i> View Form
                       </a>
 
@@ -564,7 +564,7 @@
                   {% for apt in upcoming_apts %}
                   <tr>
                     <td class="ps-4">
-                      <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
+                      <strong class="text-dark d-block"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ apt.lead.name }}</a></strong>
                       <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
                     </td>
                     <td>
@@ -599,7 +599,7 @@
                     </td>
                     <td class="pe-4 text-end text-nowrap">
                       <!-- 1. View Form -->
-                      <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
+                      <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
                         <i class="fa-solid fa-eye me-1 text-primary"></i> View Form
                       </a>
 
@@ -659,7 +659,7 @@
               {% for apt in completed_apts %}
               <tr>
                 <td class="ps-4">
-                  <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
+                  <strong class="text-dark d-block"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ apt.lead.name }}</a></strong>
                   <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
                 </td>
                 <td>
@@ -686,7 +686,7 @@
                 </td>
                 <td class="pe-4 text-end text-nowrap">
                   <!-- 1. View Form -->
-                  <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
+                  <a href="{% url 'dashboard:doctor_patient_review' apt.lead.pk %}" class="btn btn-sm btn-light border shadow-sm px-2.5 py-1 me-1" title="View Patient Details">
                     <i class="fa-solid fa-eye me-1 text-primary"></i> View Form
                   </a>
 

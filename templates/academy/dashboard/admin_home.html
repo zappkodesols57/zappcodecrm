@@ -760,7 +760,7 @@
             <span class="text-nowrap small text-muted"><i class="fa-regular fa-calendar me-1"></i>{{ lead.inquiry_date|date:"d-m-Y" }}</span>
           </td>
           <td>
-            <div class="fw-bold text-dark">{{ lead.name }}</div>
+            <div class="fw-bold text-dark"><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ lead.name }}</a></div>
             <div class="text-muted small"><i class="fa-solid fa-phone me-1 text-secondary"
                 style="font-size: 0.72rem;"></i>{{ lead.mobile }}</div>
           </td>

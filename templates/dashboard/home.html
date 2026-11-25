@@ -1026,7 +1026,7 @@
         }
 
         const targetUrl = `/dashboard/card-drilldown/?${drillParams.toString()}`;
-        window.open(targetUrl, '_blank');
+        window.location.href = targetUrl;
     }
 
     function drilldownSetMode(mode) {
@@ -2088,7 +2088,7 @@
                           <a href="tel:${item.clean_mobile || item.mobile}" class="btn btn-outline-success drilldown-action-btn" title="Call Lead">
                               <i class="fa-solid fa-phone"></i>
                           </a>
-                          <a href="${waUrl}" target="_blank" class="btn btn-success text-white drilldown-action-btn" title="WhatsApp Message">
+                          <a href="${waUrl}" class="btn btn-success text-white drilldown-action-btn" title="WhatsApp Message">
                               <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
                           </a>
                       ` : ''}

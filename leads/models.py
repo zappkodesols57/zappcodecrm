@@ -212,13 +212,11 @@ class LeadStage(models.Model):
             return DealStatus.LOST
         elif n in ("payment done", "admission done", "ipd done", "closed won", "won"):
             return DealStatus.WON
-        elif n in ("payment pending", "appointment done", "opd done", "visit done"):
-            return DealStatus.WON
         elif n in ("fresh", "new", "uncontacted", "assigned"):
             return DealStatus.UNCONTACTED
-        elif n in ("follow up pending", "follow-up pending", "follow up - pending"):
+        elif n in ("add follow up", "follow up pending", "follow-up pending", "follow up - pending", "follow up done", "follow-up done", "contacted"):
             return DealStatus.CONTACTED
-        elif any(k in n for k in ("follow", "visit", "demo", "appointment", "booking", "approval", "planned", "pending", "contacted", "interested", "done", "rescheduled")):
+        elif any(k in n for k in ("rescheduled", "appointment", "booking", "ipd booking", "approval", "planned", "pending", "interested", "visit")):
             return DealStatus.INTERESTED
         return DealStatus.CONTACTED
 
@@ -1652,6 +1650,28 @@ class Lead(models.Model):
 
     @property
     def display_status(self):
+        # If lead has active stage with mapped deal status, prefer humanized stage deal status for display
+        if self.stage:
+            mapped_ds = self.stage.mapped_deal_status
+            if mapped_ds == DealStatus.INTERESTED:
+                return "Interested"
+            elif mapped_ds == DealStatus.WON:
+                return "Won"
+            elif mapped_ds == DealStatus.LOST:
+                return "Not Interested"
+            elif mapped_ds == DealStatus.UNCONTACTED:
+                return "New"
+            elif mapped_ds == DealStatus.CONTACTED:
+                return "Contacted"
+        st = self.custom_deal_status
+        if st in ("Lost", "Cancelled", "Dead"):
+            return "Not Interested"
+        if st in ("Won", "Payment Done"):
+            return "Won"
+        if st in ("Pending", "Follow-up", "Contacted"):
+            return "Contacted"
+        if st in ("Interested", "Appointment Booking", "Appointment Rescheduled", "IPD Booking", "Payment Pending"):
+            return "Interested"
         return self.custom_deal_status
 
     @property
@@ -1663,9 +1683,21 @@ class Lead(models.Model):
         - For Other: uses deal_status / admission_status text.
         """
         if self.is_hospital_industry:
+            if self.stage:
+                mapped_ds = self.stage.mapped_deal_status
+                if mapped_ds == DealStatus.INTERESTED:
+                    return "Interested"
+                elif mapped_ds == DealStatus.WON:
+                    return "Won"
+                elif mapped_ds == DealStatus.LOST:
+                    return "Not Interested"
+                elif mapped_ds == DealStatus.UNCONTACTED:
+                    return "New"
+                elif mapped_ds == DealStatus.CONTACTED:
+                    return "Contacted"
             st = self.custom_deal_status
             if st in ("Lost", "Cancelled"):
-                return "Lost"
+                return "Not Interested"
             if st in ("Won", "Payment Done"):
                 return "Won"
             if st in ("Pending", "Follow-up"):
@@ -1882,15 +1914,17 @@ class Lead(models.Model):
             or self.custom_temperature == "Freeze"
         )
 
+        is_followup_done_stage = "follow up done" in cd_apt or "follow up done" in st_name or "follow-up done" in st_name
+
         # Check Won Condition
-        is_won_condition = (
+        is_won_condition = not is_followup_done_stage and (
             adm_st in ("WON", "ADMISSION_DONE")
             or tot > 0
             or st_name in ("payment done", "admission done", "ipd done", "closed won", "payment completed", "won")
             or "payment done" in cd_apt
             or "payment done" in cd_ds
-            or cd_ds in ("won", "won (payment done)", "admission done", "ipd done")
-            or self.deal_status == DealStatus.WON
+            or (cd_ds in ("won", "won (payment done)", "admission done", "ipd done") and not is_followup_done_stage)
+            or (self.deal_status == DealStatus.WON and not is_followup_done_stage)
         )
 
         if is_lost_condition:

@@ -442,12 +442,12 @@
       </thead>
       <tbody>
         {% for lead in page_obj %}
-        <tr class="clickable-lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
+        <tr class="lead-row" data-href="{% url 'leads:lead_detail' lead.pk %}" style="cursor: pointer;">
           <td class="px-3 text-nowrap small text-muted">
             {{ lead.inquiry_date|date:"d-m-Y" }}
           </td>
           <td class="px-3">
-            <strong class="text-dark">{{ lead.name }}</strong>
+            <strong class="text-dark"><a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ lead.name }}</a></strong>
             {% if lead.city %}<div class="text-muted small" style="font-size: 0.72rem;">{{ lead.city }}</div>{% endif %}
           </td>
           <td class="px-3">
@@ -974,7 +974,7 @@
 
   document.addEventListener('DOMContentLoaded', function() {
     // Clickable table rows
-    document.querySelectorAll('.clickable-lead-row').forEach(row => {
+    document.querySelectorAll('.lead-row').forEach(row => {
       row.addEventListener('click', function(e) {
         if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input')) {
           return;

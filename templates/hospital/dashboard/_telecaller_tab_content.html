@@ -17,7 +17,7 @@
             {% for lead in leads %}
             <tr>
                 <td class="px-4">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                         {{ lead.name }}
                     </a>
                 </td>
@@ -42,17 +42,17 @@
                     <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
                 </td>
                 <td class="px-4 text-end text-nowrap">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
                         <i class="fa-solid fa-eye"></i>
                     </a>
-                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </a>
                     {% if lead.clean_phone_number %}
-                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                         <i class="fa-brands fa-whatsapp"></i>
                     </a>
-                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                     {% endif %}
@@ -88,7 +88,7 @@
             {% for lead in leads %}
             <tr>
                 <td class="px-4">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                         {{ lead.name }}
                     </a>
                 </td>
@@ -122,17 +122,17 @@
                     <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
                 </td>
                 <td class="px-4 text-end text-nowrap">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
                         <i class="fa-solid fa-eye"></i>
                     </a>
-                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </a>
                     {% if lead.clean_phone_number %}
-                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                         <i class="fa-brands fa-whatsapp"></i>
                     </a>
-                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                     {% endif %}
@@ -169,7 +169,7 @@
             {% for lead in leads %}
             <tr>
                 <td class="px-4">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                         {{ lead.name }}
                     </a>
                 </td>
@@ -209,17 +209,17 @@
                     <div class="small fw-semibold text-dark">{{ lead.effective_created_display }}</div>
                 </td>
                 <td class="px-4 text-end text-nowrap">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
                         <i class="fa-solid fa-eye"></i>
                     </a>
-                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </a>
                     {% if lead.clean_phone_number %}
-                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                         <i class="fa-brands fa-whatsapp"></i>
                     </a>
-                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                     {% endif %}
@@ -253,7 +253,7 @@
             {% for lead in leads %}
             <tr>
                 <td class="px-4">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">{{ lead.name }}</a>
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">{{ lead.name }}</a>
                 </td>
                 <td>
                     <div class="fw-semibold text-dark">{{ lead.mobile }}</div>
@@ -288,20 +288,20 @@
                     </span>
                 </td>
                 <td class="px-4 text-end text-nowrap">
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
                     {% if lead.clean_phone_number %}
-                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                         <i class="fa-brands fa-whatsapp"></i>
                     </a>
-                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                     {% endif %}
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye"></i>
-                    </a>
-                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit Patient Form">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
                 </td>
             </tr>
             {% empty %}
@@ -333,7 +333,7 @@
             {% for lead in leads %}
             <tr>
                 <td class="px-4">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                         {{ lead.name }}
                     </a>
                 </td>
@@ -384,20 +384,20 @@
                     {% endif %}
                 </td>
                 <td class="px-4 text-end text-nowrap">
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Follow Up &amp; Update Status / Reschedule">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
                     {% if lead.clean_phone_number %}
-                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                         <i class="fa-brands fa-whatsapp"></i>
                     </a>
-                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                     {% endif %}
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye"></i>
-                    </a>
-                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Follow Up &amp; Update Status / Reschedule">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
                 </td>
             </tr>
             {% empty %}
@@ -429,7 +429,7 @@
             {% for lead in leads %}
             <tr>
                 <td class="px-4">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                         {{ lead.name }}
                     </a>
                 </td>
@@ -472,20 +472,20 @@
                     {% endif %}
                 </td>
                 <td class="px-4 text-end text-nowrap">
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View / Edit Billing Info">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
                     {% if lead.clean_phone_number %}
-                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Receipt">
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Receipt">
                         <i class="fa-brands fa-whatsapp"></i>
                     </a>
-                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                     {% endif %}
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye"></i>
-                    </a>
-                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="View / Edit Billing Info">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
                 </td>
             </tr>
             {% empty %}
@@ -522,7 +522,7 @@
             {% for lead in leads %}
             <tr>
                 <td class="px-4">
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="fw-bold text-dark text-decoration-none hover-primary d-block">
+                    <a href="{% url 'leads:lead_detail' lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary d-block">
                         {{ lead.name }}
                     </a>
                 </td>
@@ -557,20 +557,20 @@
                     <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle" style="font-size: 0.68rem;">{{ lead.custom_deal_status|default:"Lost" }}</span>
                 </td>
                 <td class="px-4 text-end text-nowrap">
+                    <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="View Patient Details">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+                    <a style="background-color: #2563eb; border-color: #2563eb; color: #ffffff;" href="{% url 'leads:lead_edit' lead.pk %}" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Edit Patient Form">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
                     {% if lead.clean_phone_number %}
-                    <a href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
+                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                         <i class="fa-brands fa-whatsapp"></i>
                     </a>
-                    <a href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs btn-success rounded-pill px-2 py-1 me-1" title="Direct Phone Call">
+                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.clean_phone_number }}" class="btn btn-xs rounded-pill px-2 py-1" title="Direct Phone Call">
                         <i class="fa-solid fa-phone"></i>
                     </a>
                     {% endif %}
-                    <a href="{% url 'leads:lead_detail' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 me-1" title="View Patient Details">
-                        <i class="fa-solid fa-eye"></i>
-                    </a>
-                    <a href="{% url 'leads:lead_edit' lead.pk %}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1" title="Edit Patient Form">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
                 </td>
             </tr>
             {% empty %}

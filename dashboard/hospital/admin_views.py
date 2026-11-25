@@ -448,27 +448,30 @@ def hospital_admin_home(request):
                 Q(custom_data__total__gt='0') |
                 Q(custom_data__deal_status__icontains='won') |
                 Q(custom_data__deal_status__icontains='Payment Done') |
-                Q(stage__name__in=['Payment Done', 'OPD Done', 'IPD Done'])
+                Q(stage__name__in=['Payment Done'])
             )
-        elif fls_norm in ['BOOKING CONFIRMED', 'APPOINTMENT CONFIRMED', 'BOOKED']:
+        elif fls_norm in ['BOOKING CONFIRMED', 'APPOINTMENT CONFIRMED', 'BOOKED', 'APPOINTMENT BOOKING', 'APPOINTMENT RESCHEDULED']:
             base_leads = base_leads.filter(
-                Q(stage__name__in=['Appointment - Confirmed', 'Booking Confirmed', 'Appointment Confirmed']) |
+                Q(stage__name__in=['Appointment Booking', 'Appointment Rescheduled', 'Appointment - Confirmed', 'Booking Confirmed', 'Appointment Confirmed']) |
                 Q(custom_data__appointment_status__icontains='book') |
                 Q(custom_data__appointment_status__icontains='confirm') |
+                Q(custom_data__appointment_status__icontains='reschedule') |
                 Q(custom_data__appointment_status__iexact='YES') |
                 Q(custom_data__appointment_confirmed_at__isnull=False)
             )
-        elif fls_norm == 'LOST':
+        elif fls_norm in ['LOST', 'NOT INTERESTED']:
             base_leads = base_leads.filter(
                 Q(deal_status=DealStatus.LOST) |
                 Q(custom_data__deal_status__icontains='Lost') |
+                Q(custom_data__deal_status__icontains='Not Interested') |
                 Q(custom_data__appointment_status__icontains='cancel') |
                 Q(custom_data__appointment_status__icontains='lost') |
                 Q(stage__name__in=['Lost', 'Cancelled'])
             )
-        elif fls_norm == 'FOLLOW UP PENDING':
+        elif fls_norm in ['FOLLOW UP PENDING', 'ADD FOLLOW UP', 'FOLLOW UP DONE']:
             base_leads = base_leads.filter(
                 Q(stage__name__icontains='Follow Up') |
+                Q(stage__name__icontains='Add Follow Up') |
                 Q(custom_data__appointment_status__icontains='follow') |
                 Q(next_followup_date__isnull=False)
             ).exclude(deal_status__in=[DealStatus.WON, DealStatus.LOST])
@@ -646,13 +649,14 @@ def hospital_admin_home(request):
     # 3. Appointments Booked: Total distinct leads with appointments booked (Active vs Completed)
     # Active: Scheduled / Confirmed appointments awaiting visit
     appt_active_qs = hospital_all_leads.filter(
-        Q(stage__name__in=['Appointment - Confirmed', 'Booking Confirmed', 'Appointment Confirmed']) |
+        Q(stage__name__in=['Appointment Booking', 'Appointment Rescheduled', 'Appointment - Confirmed', 'Booking Confirmed', 'Appointment Confirmed']) |
         Q(custom_data__appointment_status__iexact='YES') |
         Q(custom_data__appointment_status__icontains='booked') |
         Q(custom_data__appointment_status__icontains='confirmed') |
+        Q(custom_data__appointment_status__icontains='rescheduled') |
         Q(custom_data__appointment_confirmed_at__isnull=False)
     ).exclude(
-        Q(stage__name__in=['OPD Done', 'Payment Done', 'IPD Done', 'Cancelled', 'Lost']) |
+        Q(stage__name__in=['Payment Done', 'Cancelled', 'Lost']) |
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
         Q(custom_data__appointment_status__icontains='done') |
         Q(custom_data__appointment_status__icontains='completed')
@@ -660,7 +664,7 @@ def hospital_admin_home(request):
 
     # Completed: Appointments that converted to Hospital visit / Payment Done
     appt_completed_qs = hospital_all_leads.filter(
-        Q(stage__name__in=['OPD Done', 'Payment Done', 'IPD Done']) |
+        Q(stage__name__in=['Payment Done']) |
         Q(deal_status=DealStatus.WON) |
         Q(custom_data__appointment_status__icontains='done') |
         Q(custom_data__appointment_status__icontains='completed')
@@ -669,7 +673,8 @@ def hospital_admin_home(request):
         Q(custom_data__appo_booked_date__isnull=False) |
         Q(custom_data__appointment_status__icontains='booked') |
         Q(custom_data__appointment_status__icontains='confirm') |
-        Q(stage__name__in=['OPD Done', 'Payment Done', 'IPD Done'])
+        Q(custom_data__appointment_status__icontains='reschedule') |
+        Q(stage__name__in=['Payment Done', 'Appointment Booking', 'Appointment Rescheduled'])
     ).distinct()
 
     appointment_active_count = appt_active_qs.count()
