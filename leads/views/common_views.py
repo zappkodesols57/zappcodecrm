@@ -5786,10 +5786,10 @@ def zappcode_academy_website_lead(request):
         if not course_obj:
             course_obj = Course.objects.filter(hospital_id=7, name__icontains=course_input).first()
 
-    from leads.models import Stage
+    from leads.models import LeadStage
     default_stage = (
-        Stage.objects.filter(hospital_id=7, is_active=True, name__iexact="Fresh").first()
-        or Stage.objects.filter(hospital_id=7, is_active=True).order_by("order", "id").first()
+        LeadStage.objects.filter(hospital_id=7, is_active=True, name__iexact="Fresh").first()
+        or LeadStage.objects.filter(hospital_id=7, is_active=True).order_by("order", "id").first()
     )
 
     custom_data = {"source_url": "zappcodeacademy.com/contact-us/"}
