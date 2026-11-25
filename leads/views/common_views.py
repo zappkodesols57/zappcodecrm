@@ -5788,9 +5788,8 @@ def zappcode_academy_website_lead(request):
 
     from leads.models import Stage
     default_stage = (
-        Stage.objects.filter(hospital_id=7, is_active=True)
-        .order_by("order", "id")
-        .first()
+        Stage.objects.filter(hospital_id=7, is_active=True, name__iexact="Fresh").first()
+        or Stage.objects.filter(hospital_id=7, is_active=True).order_by("order", "id").first()
     )
 
     custom_data = {"source_url": "zappcodeacademy.com/contact-us/"}
