@@ -519,14 +519,20 @@ def academy_admin_home(request):
         ).order_by("first_name", "username")
 
     # Stages (Academy/Shared stages + any stage currently assigned to this business's leads)
-    lead_stage_ids = list(leads_base.filter(stage__isnull=False).values_list("stage_id", flat=True).distinct())
-    stages = LeadStage.objects.filter(
-        Q(is_active=True, business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]) |
-        Q(id__in=lead_stage_ids)
-    )
     if active_business:
-        stages = stages.filter(Q(hospital=active_business) | Q(hospital__isnull=True) | Q(id__in=lead_stage_ids))
-    stages = stages.distinct().order_by("order", "name")
+        raw_stages = LeadStage.objects.filter(hospital=active_business, is_active=True).order_by("order", "name")
+    else:
+        raw_stages = LeadStage.objects.filter(
+            is_active=True,
+            business_type__in=[LeadStage.BusinessType.ACADEMY, LeadStage.BusinessType.ALL]
+        ).order_by("order", "name")
+    seen_stage_names = set()
+    stages = []
+    for st in raw_stages:
+        key = (st.name or "").strip().lower()
+        if key and key not in seen_stage_names:
+            seen_stage_names.add(key)
+            stages.append(st)
 
     # Campaigns (Business-specific)
     if active_business:
