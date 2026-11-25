@@ -913,7 +913,7 @@ function renderDrilldownTable(leads) {
             </td>
             <td class="py-2.5">
                 <div class="fw-bold text-dark d-flex align-items-center gap-1.5">
-                    <a href="/leads/${lead.id}/" target="_blank" class="text-dark text-decoration-none hover-primary">${lead.name}</a>
+                    <a href="/leads/${lead.id}/" class="text-dark text-decoration-none hover-primary">${lead.name}</a>
                 </div>
                 <div class="text-muted small" style="font-size: 0.73rem;">ID: #${lead.id} · ${lead.created_at || ''}</div>
             </td>
@@ -940,7 +940,7 @@ function renderDrilldownTable(leads) {
                 <div class="d-flex align-items-center gap-1">
                     ${directCallBtn}
                     ${whatsappBtn}
-                    <a href="/leads/${lead.id}/" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 fw-bold shadow-xs" style="font-size: 0.75rem;">
+                    <a href="/leads/${lead.id}/" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 fw-bold shadow-xs" style="font-size: 0.75rem;">
                         View <i class="fa-solid fa-arrow-up-right-from-square ms-0.5"></i>
                     </a>
                 </div>

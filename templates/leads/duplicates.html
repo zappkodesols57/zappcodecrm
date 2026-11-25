@@ -80,7 +80,7 @@
           <td>{{ l.effective_created_display|default:l.created_at|date:"d M Y" }}</td>
           <td class="text-end pe-4">
             <div class="d-inline-flex gap-1">
-              <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-2" title="View Lead Profile" target="_blank">
+              <a href="{% url 'leads:lead_detail' l.pk %}" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-2" title="View Lead Profile">
                 View
               </a>
               
