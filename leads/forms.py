@@ -1511,7 +1511,10 @@ class HospitalLeadForm(forms.ModelForm):
 
         # Explicitly ensure hospital_branch and disease are saved to custom_data (supporting synonyms)
         dis_val = self.cleaned_data.get('disease') or self.cleaned_data.get('dyn_disease') or self.data.get('disease') or self.data.get('dyn_disease')
-        if dis_val and str(dis_val).strip():
+        other_dis = (self.data.get('other_disease_text') or '').strip()
+        if dis_val and str(dis_val).strip().lower() == 'other' and other_dis:
+            cd['disease'] = other_dis
+        elif dis_val and str(dis_val).strip():
             cd['disease'] = str(dis_val).strip()
 
         branch_val = self.cleaned_data.get('hospital_branch') or self.cleaned_data.get('dyn_hospital_branch') or self.cleaned_data.get('dyn_branch') or self.data.get('hospital_branch') or self.data.get('dyn_hospital_branch') or self.data.get('dyn_branch')

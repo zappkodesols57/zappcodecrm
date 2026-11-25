@@ -2008,3 +2008,16 @@ def switch_business(request):
 
 
 
+
+
+@login_required
+def user_toggle_active(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST required."}, status=405)
+    target_user = get_object_or_404(User, pk=pk)
+    if request.user.pk == target_user.pk:
+        return JsonResponse({"status": "error", "message": "You cannot deactivate your own account."}, status=400)
+    target_user.is_active = not target_user.is_active
+    target_user.is_active_employee = target_user.is_active
+    target_user.save(update_fields=["is_active", "is_active_employee"])
+    return JsonResponse({"status": "success", "is_active": target_user.is_active})

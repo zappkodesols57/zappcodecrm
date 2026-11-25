@@ -45,10 +45,13 @@
     display: flex;
     align-items: center;
   }
+
   .password-field-container .form-control {
     padding-right: 4rem !important;
-    background-image: none !important; /* Hide Bootstrap default validate icons */
+    background-image: none !important;
+    /* Hide Bootstrap default validate icons */
   }
+
   .password-icons-wrapper {
     position: absolute;
     right: 10px;
@@ -59,11 +62,13 @@
     gap: 8px;
     z-index: 10;
   }
+
   .password-match-icon {
     font-size: 0.95rem;
     display: none;
     line-height: 1;
   }
+
   .password-toggle-btn {
     background: transparent !important;
     border: none !important;
@@ -76,6 +81,7 @@
     justify-content: center;
     line-height: 1;
   }
+
   .password-toggle-btn:hover {
     color: #475569 !important;
   }
@@ -84,28 +90,31 @@
 {% block content %}
 <div class="nelson-dashboard pt-4">
 
-<div class="d-flex justify-content-between align-items-center mb-3 gap-2">
-  <div class="flex-grow-1 overflow-hidden">
-    <h4 class="mb-0 fw-bold text-dark text-truncate">{{ mode }} Employee User</h4>
-    <p class="text-muted small mb-0 text-truncate">Create or edit team member accounts with role and credentials.</p>
+  <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+    <div class="flex-grow-1 overflow-hidden">
+      <h4 class="mb-0 fw-bold text-dark text-truncate">{{ mode }} Employee User</h4>
+
+    </div>
+    <a href="{% url 'accounts:user_list' %}"
+      class="btn btn-outline-secondary btn-sm rounded-pill text-nowrap flex-shrink-0"
+      style="padding: 0.3rem 0.75rem; font-size: 0.75rem;"><i class="fa-solid fa-arrow-left me-1"></i> <span
+        class="d-none d-sm-inline">Back to </span>Users</a>
   </div>
-  <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary btn-sm rounded-pill text-nowrap flex-shrink-0" style="padding: 0.3rem 0.75rem; font-size: 0.75rem;"><i class="fa-solid fa-arrow-left me-1"></i> <span class="d-none d-sm-inline">Back to </span>Users</a>
-</div>
 
-<div class="card shadow-sm border-0 rounded-4 w-100 mb-4 bg-white">
-  <form method="post" id="userForm">
-    {% csrf_token %}
-    <div class="card-body p-4 p-md-4">
-      
-      {% if form.non_field_errors %}
-      <div class="alert alert-danger py-2 small mb-3 rounded-3">
-        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-      </div>
-      {% endif %}
+  <div class="card shadow-sm border-0 rounded-4 w-100 mb-4 bg-white">
+    <form method="post" id="userForm">
+      {% csrf_token %}
+      <div class="card-body p-4 p-md-4">
 
-      <!-- 1. Main Account Details (3 Fields Per Row) -->
-      <div class="row g-3">
-        {% for field in form %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2 small mb-3 rounded-3">
+          {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- 1. Main Account Details (3 Fields Per Row) -->
+        <div class="row g-3">
+          {% for field in form %}
           {% if field.field.widget.input_type != 'checkbox' and field.name != 'password1' and field.name != 'password2' and field.name != 'assigned_branches' and field.name != 'branch' %}
           <div id="div_id_{{ field.name }}" class="col-md-6 col-lg-4" {% if field.name == 'department' or field.name == 'speciality' %}style="display: none;"{% endif %}>
             <label class="form-label small fw-semibold text-dark mb-1">
@@ -113,515 +122,589 @@
             </label>
             {{ field }}
             {% if field.name == 'username' %}
-              <div id="username_feedback_box" class="mt-1" style="display: none;"></div>
+            <div id="username_feedback_box" class="mt-1" style="display: none;"></div>
             {% endif %}
             {% if field.errors %}<div class="text-danger small mt-1" style="font-size: 0.75rem;">{{ field.errors|striptags }}</div>{% endif %}
             {% if field.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ field.help_text|striptags }}</div>{% endif %}
           </div>
           {% endif %}
-        {% endfor %}
-      </div>
+          {% endfor %}
+        </div>
 
-      <!-- Branch Assignment (Multiple Checkboxes) -->
-      {% if form.assigned_branches %}
-      <div id="div_id_assigned_branches" class="mt-4" style="display: none;">
-        <label class="form-label small fw-semibold text-dark mb-1">
-          <i class="fa-solid fa-code-branch text-primary me-1"></i> Assigned Branches
-        </label>
-        <div class="p-3 bg-light rounded-3 border">
-          <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
-            <span class="text-muted small" style="font-size: 0.75rem;">
-              Select branches this user can access and manage leads for. If no branch is selected, user has full business access.
-            </span>
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-primary" style="font-size: 0.73rem;" onclick="toggleAllBranches(true)">Select All</button>
-              <span class="text-muted" style="font-size: 0.73rem;">|</span>
-              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-secondary" style="font-size: 0.73rem;" onclick="toggleAllBranches(false)">Clear All</button>
-            </div>
-          </div>
-          <div class="row g-2" id="branchCheckboxesContainer">
-            {% for choice in form.assigned_branches %}
-            <div class="col-sm-6 col-md-4 col-lg-3 branch-item-col" data-branch-id="{{ choice.data.value }}">
-              <div class="form-check p-2 bg-white rounded border h-100 d-flex align-items-center">
-                <input type="checkbox" name="assigned_branches" value="{{ choice.data.value }}" id="{{ choice.id_for_label }}" class="form-check-input ms-0 me-2 branch-checkbox" {% if choice.data.selected %}checked{% endif %}>
-                <label class="form-check-label small fw-medium text-dark mb-0 cursor-pointer text-truncate" for="{{ choice.id_for_label }}" title="{{ choice.choice_label }}">
-                  {{ choice.choice_label }}
-                </label>
+        <!-- Branch Assignment (Multiple Checkboxes) -->
+        {% if form.assigned_branches %}
+        <div id="div_id_assigned_branches" class="mt-4" style="display: none;">
+          <label class="form-label small fw-semibold text-dark mb-1">
+            <i class="fa-solid fa-code-branch text-primary me-1"></i> Assigned Branches
+          </label>
+          <div class="p-3 bg-light rounded-3 border">
+            <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+              <span class="text-muted small" style="font-size: 0.75rem;">
+                Select branches this user can access and manage leads for. If no branch is selected, user has full
+                business access.
+              </span>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-primary"
+                  style="font-size: 0.73rem;" onclick="toggleAllBranches(true)">Select All</button>
+                <span class="text-muted" style="font-size: 0.73rem;">|</span>
+                <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none text-secondary"
+                  style="font-size: 0.73rem;" onclick="toggleAllBranches(false)">Clear All</button>
               </div>
             </div>
-            {% empty %}
-            <div class="col-12 text-muted small py-1" id="noBranchesPlaceholder">No branches configured for this business yet.</div>
-            {% endfor %}
+            <div class="row g-2" id="branchCheckboxesContainer">
+              {% for choice in form.assigned_branches %}
+              <div class="col-sm-6 col-md-4 col-lg-3 branch-item-col" data-branch-id="{{ choice.data.value }}">
+                <div class="form-check p-2 bg-white rounded border h-100 d-flex align-items-center">
+                  <input type="checkbox" name="assigned_branches" value="{{ choice.data.value }}"
+                    id="{{ choice.id_for_label }}" class="form-check-input ms-0 me-2 branch-checkbox" {% if choice.data.selected %}checked{% endif %}>
+                  <label class="form-check-label small fw-medium text-dark mb-0 cursor-pointer text-truncate"
+                    for="{{ choice.id_for_label }}" title="{{ choice.choice_label }}">
+                    {{ choice.choice_label }}
+                  </label>
+                </div>
+              </div>
+              {% empty %}
+              <div class="col-12 text-muted small py-1" id="noBranchesPlaceholder">No branches configured for this
+                business yet.</div>
+              {% endfor %}
+            </div>
+            {% if form.assigned_branches.errors %}
+            <div class="text-danger small mt-2" style="font-size: 0.75rem;">{{ form.assigned_branches.errors|striptags }}</div>
+            {% endif %}
           </div>
-          {% if form.assigned_branches.errors %}
-          <div class="text-danger small mt-2" style="font-size: 0.75rem;">{{ form.assigned_branches.errors|striptags }}</div>
+        </div>
+        {% endif %}
+
+        <!-- 2. Password & Confirm Password (Side-by-Side in 2 Equal Columns with Eye Toggle & Match Icon) -->
+        {% if form.password1 or form.password2 %}
+        <div class="row g-3 mt-1">
+          {% if form.password1 %}
+          <div id="div_id_password1" class="col-md-6">
+            <label class="form-label small fw-semibold text-dark mb-1">
+              {{ form.password1.label }} <span class="text-danger">*</span>
+            </label>
+            <div class="password-field-container">
+              {{ form.password1 }}
+              <div class="password-icons-wrapper">
+                <button class="password-toggle-btn" type="button"
+                  onclick="togglePasswordVisibility('id_password1', this)" title="Show / Hide Password" tabindex="-1">
+                  <i class="fa-regular fa-eye-slash"></i>
+                </button>
+              </div>
+            </div>
+            {% if form.password1.errors %}<div id="password1_server_error"
+              class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password1.errors|striptags }}</div>{% endif %}
+            {% if form.password1.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password1.help_text|striptags }}</div>{% endif %}
+          </div>
+          {% endif %}
+          {% if form.password2 %}
+          <div id="div_id_password2" class="col-md-6">
+            <label class="form-label small fw-semibold text-dark mb-1">
+              {{ form.password2.label }} <span class="text-danger">*</span>
+            </label>
+            <div class="password-field-container">
+              {{ form.password2 }}
+              <div class="password-icons-wrapper">
+                <span id="password2_match_icon" class="password-match-icon"></span>
+                <button class="password-toggle-btn" type="button"
+                  onclick="togglePasswordVisibility('id_password2', this)" title="Show / Hide Password" tabindex="-1">
+                  <i class="fa-regular fa-eye-slash"></i>
+                </button>
+              </div>
+            </div>
+            <div id="password_match_feedback" class="mt-1 small fw-medium" style="display: none; font-size: 0.75rem;">
+            </div>
+            {% if form.password2.errors %}<div id="password2_server_error"
+              class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password2.errors|striptags }}</div>{% endif %}
+            {% if form.password2.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password2.help_text|striptags }}</div>{% endif %}
+          </div>
           {% endif %}
         </div>
-      </div>
-      {% endif %}
-
-      <!-- 2. Password & Confirm Password (Side-by-Side in 2 Equal Columns with Eye Toggle & Match Icon) -->
-      {% if form.password1 or form.password2 %}
-      <div class="row g-3 mt-1">
-        {% if form.password1 %}
-        <div id="div_id_password1" class="col-md-6">
-          <label class="form-label small fw-semibold text-dark mb-1">
-            {{ form.password1.label }} <span class="text-danger">*</span>
-          </label>
-          <div class="password-field-container">
-            {{ form.password1 }}
-            <div class="password-icons-wrapper">
-              <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('id_password1', this)" title="Show / Hide Password" tabindex="-1">
-                <i class="fa-regular fa-eye-slash"></i>
-              </button>
-            </div>
-          </div>
-          {% if form.password1.errors %}<div id="password1_server_error" class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password1.errors|striptags }}</div>{% endif %}
-          {% if form.password1.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password1.help_text|striptags }}</div>{% endif %}
-        </div>
         {% endif %}
-        {% if form.password2 %}
-        <div id="div_id_password2" class="col-md-6">
-          <label class="form-label small fw-semibold text-dark mb-1">
-            {{ form.password2.label }} <span class="text-danger">*</span>
-          </label>
-          <div class="password-field-container">
-            {{ form.password2 }}
-            <div class="password-icons-wrapper">
-              <span id="password2_match_icon" class="password-match-icon"></span>
-              <button class="password-toggle-btn" type="button" onclick="togglePasswordVisibility('id_password2', this)" title="Show / Hide Password" tabindex="-1">
-                <i class="fa-regular fa-eye-slash"></i>
-              </button>
-            </div>
-          </div>
-          <div id="password_match_feedback" class="mt-1 small fw-medium" style="display: none; font-size: 0.75rem;"></div>
-          {% if form.password2.errors %}<div id="password2_server_error" class="text-danger small mt-1 password-server-error" style="font-size: 0.75rem;">{{ form.password2.errors|striptags }}</div>{% endif %}
-          {% if form.password2.help_text %}<div class="form-text small text-muted" style="font-size: 0.72rem;">{{ form.password2.help_text|striptags }}</div>{% endif %}
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
 
-      <!-- 3. Permissions & Status Checkboxes (Placed Right Before Save Button) -->
-      <div class="row g-2 mt-1">
-        {% for field in form %}
+        <!-- 3. Permissions & Status Checkboxes (Placed Right Before Save Button) -->
+        <div class="row g-2 mt-1">
+          {% for field in form %}
           {% if field.field.widget.input_type == 'checkbox' and field.name != 'assigned_branches' %}
           <div id="div_id_{{ field.name }}" class="col-12 col-sm-6 col-lg-4">
-            <div class="p-2 px-3 rounded-2 border h-100 d-flex flex-column justify-content-center" style="background-color: #f8fafc; border-color: #e2e8f0 !important;">
+            <div class="p-2 px-3 rounded-2 border h-100 d-flex flex-column justify-content-center"
+              style="background-color: #f8fafc; border-color: #e2e8f0 !important;">
               <div class="form-check m-0 d-flex align-items-center">
                 {{ field }}
-                <label class="form-check-label fw-semibold text-dark mb-0 ms-1 cursor-pointer" style="font-size: 0.81rem; line-height: 1.25;" for="{{ field.id_for_label }}">
+                <label class="form-check-label fw-semibold text-dark mb-0 ms-1 cursor-pointer"
+                  style="font-size: 0.81rem; line-height: 1.25;" for="{{ field.id_for_label }}">
                   {{ field.label }}
                 </label>
               </div>
               {% if field.help_text %}
-                <div class="text-muted mt-1" style="font-size: 0.7rem; line-height: 1.25; margin-left: 1.5rem; opacity: 0.85;">{{ field.help_text|striptags }}</div>
+              <div class="text-muted mt-1"
+                style="font-size: 0.7rem; line-height: 1.25; margin-left: 1.5rem; opacity: 0.85;">{{ field.help_text|striptags }}</div>
               {% endif %}
             </div>
           </div>
           {% endif %}
-        {% endfor %}
+          {% endfor %}
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mt-4 pt-3 border-top justify-content-center align-items-center">
+          <a href="{% url 'accounts:user_list' %}"
+            class="btn btn-light rounded-pill border d-inline-flex align-items-center justify-content-center"
+            style="min-width: 195px; height: 40px;">
+            <i class="fa-solid fa-arrow-left me-1"></i> Cancel & Return
+          </a>
+          <button type="submit" id="saveUserBtn"
+            class="btn btn-primary rounded-pill fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center"
+            style="min-width: 195px; height: 40px;">
+            <i class="fa-solid fa-check me-1"></i> Save Employee User
+          </button>
+        </div>
       </div>
+    </form>
+  </div>
 
-      <div class="d-flex flex-wrap gap-2 mt-4 pt-3 border-top justify-content-between align-items-center">
-        <a href="{% url 'accounts:user_list' %}" class="btn btn-light rounded-pill px-4 border">
-          <i class="fa-solid fa-arrow-left me-1"></i> Cancel & Return
-        </a>
-        <button type="submit" id="saveUserBtn" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
-          <i class="fa-solid fa-check me-1"></i> Save Employee User
-        </button>
-      </div>
-    </div>
-  </form>
-</div>
+  <script>
+    const userRolesMap = {{ user_roles_map|default:"{}" | safe }};
+    const businessMetaMap = {{ business_meta_map|default:"{}" | safe }};
+    let originalReportsToOptions = null; // To store backup of original options
+    let originalRoleOptions = null; // To store backup of original role options
 
-<script>
-  const userRolesMap = {{ user_roles_map|default:"{}"|safe }};
-  const businessMetaMap = {{ business_meta_map|default:"{}"|safe }};
-  let originalReportsToOptions = null; // To store backup of original options
-  let originalRoleOptions = null; // To store backup of original role options
-
-  document.addEventListener("DOMContentLoaded", function() {
-    const hospField = document.getElementById("id_hospital");
-    const roleField = document.getElementById("id_role");
-    const deptDiv = document.getElementById("div_id_department");
-    const specDiv = document.getElementById("div_id_speciality");
-    const hospDiv = document.getElementById("div_id_hospital");
-    const assignedBranchesDiv = document.getElementById("div_id_assigned_branches");
-    const allowBranchTransferDiv = document.getElementById("div_id_allow_branch_transfer");
-    const allowBranchTransferInput = document.getElementById("id_allow_branch_transfer");
-    const allowSelfAssignDiv = document.getElementById("div_id_allow_self_assign");
-    const allowSelfAssignInput = document.getElementById("id_allow_self_assign");
-    const bulkLimitDiv = document.getElementById("div_id_bulk_self_assign_limit");
-    const bulkLimitInput = document.getElementById("id_bulk_self_assign_limit");
-    const reportsToSelect = document.getElementById("id_reports_to");
-
-    // Backup original role options
-    if (roleField) {
-      originalRoleOptions = Array.from(roleField.options).map(opt => ({
-        value: opt.value,
-        text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Employee Role" : opt.text,
-        selected: opt.selected
-      }));
-    }
-
-    if (allowSelfAssignInput) {
-      allowSelfAssignInput.addEventListener("change", function() {
-        if (bulkLimitDiv) {
-          bulkLimitDiv.style.display = this.checked ? "block" : "none";
-          if (this.checked && bulkLimitInput && (!bulkLimitInput.value || parseInt(bulkLimitInput.value) <= 0)) {
-            bulkLimitInput.value = "25";
-          }
-        }
+    document.addEventListener("DOMContentLoaded", function () {
+      const uEl = document.getElementById("id_username");
+      if (uEl && !uEl.placeholder) uEl.placeholder = "Enter username";
+      const lnEl = document.getElementById("id_last_name");
+      if (lnEl && !lnEl.placeholder) lnEl.placeholder = "Enter last name";
+      ["id_department", "id_speciality"].forEach(function(fid) {
+        const sel = document.getElementById(fid);
+        if (!sel || sel.dataset.customDd) return;
+        sel.dataset.customDd = "1";
+        sel.style.display = "none";
+        const wrap = document.createElement("div");
+        wrap.className = "position-relative w-100";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "form-select text-start text-truncate bg-white";
+        btn.style.cssText = "height:38px;font-size:0.875rem;border-radius:8px;";
+        btn.textContent = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : "Select";
+        const menu = document.createElement("div");
+        menu.className = "bg-white border rounded-3 shadow-sm position-absolute start-0 end-0 mt-1 d-none";
+        menu.style.cssText = "max-height:260px;overflow-y:auto;z-index:1060;";
+        Array.from(sel.options).forEach(function(opt) {
+          const item = document.createElement("div");
+          item.className = "px-3 py-1.5 small";
+          item.style.cursor = "pointer";
+          item.textContent = opt.text;
+          item.addEventListener("mouseenter", function(){ item.style.background = "#eff6ff"; });
+          item.addEventListener("mouseleave", function(){ item.style.background = sel.value === opt.value ? "#e0f2fe" : ""; });
+          item.addEventListener("click", function() {
+            sel.value = opt.value;
+            btn.textContent = opt.text;
+            menu.classList.add("d-none");
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+          menu.appendChild(item);
+        });
+        btn.addEventListener("click", function(e) {
+          e.stopPropagation();
+          document.querySelectorAll(".custom-dd-menu").forEach(m => { if (m !== menu) m.classList.add("d-none"); });
+          menu.classList.toggle("d-none");
+        });
+        menu.classList.add("custom-dd-menu");
+        document.addEventListener("click", function() { menu.classList.add("d-none"); });
+        wrap.appendChild(btn);
+        wrap.appendChild(menu);
+        sel.parentNode.insertBefore(wrap, sel.nextSibling);
       });
-    }
+      const hospField = document.getElementById("id_hospital");
+      const roleField = document.getElementById("id_role");
+      const deptDiv = document.getElementById("div_id_department");
+      const specDiv = document.getElementById("div_id_speciality");
+      const hospDiv = document.getElementById("div_id_hospital");
+      const assignedBranchesDiv = document.getElementById("div_id_assigned_branches");
+      const allowBranchTransferDiv = document.getElementById("div_id_allow_branch_transfer");
+      const allowBranchTransferInput = document.getElementById("id_allow_branch_transfer");
+      const allowSelfAssignDiv = document.getElementById("div_id_allow_self_assign");
+      const allowSelfAssignInput = document.getElementById("id_allow_self_assign");
+      const bulkLimitDiv = document.getElementById("div_id_bulk_self_assign_limit");
+      const bulkLimitInput = document.getElementById("id_bulk_self_assign_limit");
+      const reportsToSelect = document.getElementById("id_reports_to");
 
-    // Clear initial role pre-selection if mode is Add Mode
-    {% if not obj %}
-    if (roleField && roleField.value === "LEAD_ATTENDENT" && !roleField.dataset.userSelected) {
-      const hasEmptyOpt = Array.from(roleField.options).some(o => o.value === "");
-      if (hasEmptyOpt) {
-        roleField.value = "";
-        if (roleField.tomselect) {
-          roleField.tomselect.clear();
-        }
-      }
-    }
-    {% endif %}
-
-    // Format 10-digit phone input (optional field)
-    const phoneInput = document.getElementById("id_phone") || document.querySelector('input[name="phone"]');
-    if (phoneInput) {
-      phoneInput.setAttribute("maxlength", "10");
-      phoneInput.removeAttribute("minlength");
-      phoneInput.removeAttribute("pattern");
-      phoneInput.setAttribute("inputmode", "numeric");
-      phoneInput.setAttribute("placeholder", "10-digit mobile number");
-      phoneInput.addEventListener("input", function() {
-        this.value = this.value.replace(/[^0-9]/g, "").slice(0, 10);
-      });
-    }
-
-    // Auto-convert Email input to lowercase and trim
-    const emailInput = document.getElementById("id_email") || document.querySelector('input[name="email"]');
-    if (emailInput) {
-      emailInput.style.textTransform = "lowercase";
-      emailInput.addEventListener("input", function() {
-        this.value = this.value.toLowerCase();
-      });
-      emailInput.addEventListener("blur", function() {
-        this.value = this.value.trim().toLowerCase();
-      });
-    }
-
-    // Backup original options
-    if (reportsToSelect) {
-      originalReportsToOptions = Array.from(reportsToSelect.options).map(opt => ({
-        value: opt.value,
-        text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Reporting" : opt.text,
-        selected: opt.selected
-      }));
-    }
-
-    // Clean up empty placeholder options for department & speciality
-    const deptSelectEl = document.getElementById("id_department");
-    if (deptSelectEl && deptSelectEl.options.length > 0) {
-      if (deptSelectEl.options[0].value === "" && (deptSelectEl.options[0].text.includes("---") || !deptSelectEl.options[0].text.trim())) {
-        deptSelectEl.options[0].text = "Select Department";
-      }
-    }
-    const specSelectEl = document.getElementById("id_speciality");
-    if (specSelectEl && specSelectEl.options.length > 0) {
-      if (specSelectEl.options[0].value === "" && (specSelectEl.options[0].text.includes("---") || !specSelectEl.options[0].text.trim())) {
-        specSelectEl.options[0].text = "Select Speciality";
-      }
-    }
-
-    const dailyCallDiv = document.getElementById("div_id_daily_call_target");
-    const dailyCallInput = document.getElementById("id_daily_call_target");
-
-    function toggleFields() {
-      if (!roleField) return;
-      
-      const selectedHospId = hospField ? String(hospField.value || "").trim() : "";
-      const bizInfo = selectedHospId && businessMetaMap ? businessMetaMap[selectedHospId] : null;
-      const currentIndustry = (bizInfo ? bizInfo.industry : null) || "{{ biz_industry|default:'ACADEMY' }}";
-      const isHospitalIndustry = currentIndustry === "HOSPITAL";
-
-      const isDoctor = roleField.value === "DOCTOR" && isHospitalIndustry;
-      const isEligibleForSelfAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
-      const isEligibleForCallingTarget = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
-      
-      if (deptDiv) {
-        deptDiv.style.display = isDoctor ? "block" : "none";
-        const deptInput = document.getElementById("id_department");
-        if (deptInput) deptInput.disabled = !isDoctor;
-      }
-      if (specDiv) {
-        specDiv.style.display = isDoctor ? "block" : "none";
-        const specInput = document.getElementById("id_speciality");
-        if (specInput) specInput.disabled = !isDoctor;
-      }
-      
-      // Hide & disable Daily Calling Target for Doctor / Admin / Non-telecaller roles
-      if (dailyCallDiv) {
-        dailyCallDiv.style.display = isEligibleForCallingTarget ? "block" : "none";
-        if (dailyCallInput) {
-          if (!isEligibleForCallingTarget) {
-            dailyCallInput.value = isDoctor ? "0" : "0";
-            dailyCallInput.disabled = true;
-          } else {
-            dailyCallInput.disabled = false;
-            if (!dailyCallInput.value || parseInt(dailyCallInput.value) <= 0) {
-              dailyCallInput.value = "100";
-            }
-          }
-        }
-      }
-      
-      if (allowSelfAssignDiv) {
-        allowSelfAssignDiv.style.display = isEligibleForSelfAssign ? "block" : "none";
-        if (allowSelfAssignInput) {
-          if (!isEligibleForSelfAssign) {
-            allowSelfAssignInput.checked = false;
-            allowSelfAssignInput.disabled = true;
-          } else {
-            allowSelfAssignInput.disabled = false;
-          }
-        }
+      // Backup original role options
+      if (roleField) {
+        originalRoleOptions = Array.from(roleField.options).map(opt => ({
+          value: opt.value,
+          text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Employee Role" : opt.text,
+          selected: opt.selected
+        }));
       }
 
-      if (bulkLimitDiv) {
-        const isSelfAssignChecked = allowSelfAssignInput ? allowSelfAssignInput.checked : true;
-        const showBulk = isEligibleForSelfAssign && isSelfAssignChecked;
-        bulkLimitDiv.style.display = showBulk ? "block" : "none";
-        if (bulkLimitInput) {
-          if (!showBulk) {
-            bulkLimitInput.value = "0";
-            bulkLimitInput.disabled = true;
-          } else {
-            bulkLimitInput.disabled = false;
-            if (!bulkLimitInput.value || parseInt(bulkLimitInput.value) <= 0) {
+      if (allowSelfAssignInput) {
+        allowSelfAssignInput.addEventListener("change", function () {
+          if (bulkLimitDiv) {
+            bulkLimitDiv.style.display = this.checked ? "block" : "none";
+            if (this.checked && bulkLimitInput && (!bulkLimitInput.value || parseInt(bulkLimitInput.value) <= 0)) {
               bulkLimitInput.value = "25";
             }
           }
+        });
+      }
+
+      // Clear initial role pre-selection if mode is Add Mode
+      {% if not obj %}
+      if (roleField && roleField.value === "LEAD_ATTENDENT" && !roleField.dataset.userSelected) {
+        const hasEmptyOpt = Array.from(roleField.options).some(o => o.value === "");
+        if (hasEmptyOpt) {
+          roleField.value = "";
+          if (roleField.tomselect) {
+            roleField.tomselect.clear();
+          }
         }
       }
-      
-      if (!isDoctor) {
-        const deptSelect = document.getElementById("id_department");
-        const specSelect = document.getElementById("id_speciality");
-        
-        if(deptSelect) {
+      {% endif %}
+
+      // Format 10-digit phone input (optional field)
+      const phoneInput = document.getElementById("id_phone") || document.querySelector('input[name="phone"]');
+      if (phoneInput) {
+        phoneInput.setAttribute("maxlength", "10");
+        phoneInput.removeAttribute("minlength");
+        phoneInput.removeAttribute("pattern");
+        phoneInput.setAttribute("inputmode", "numeric");
+        phoneInput.setAttribute("placeholder", "10-digit mobile number");
+        phoneInput.addEventListener("input", function () {
+          this.value = this.value.replace(/[^0-9]/g, "").slice(0, 10);
+        });
+      }
+
+      // Auto-convert Email input to lowercase and trim
+      const emailInput = document.getElementById("id_email") || document.querySelector('input[name="email"]');
+      if (emailInput) {
+        emailInput.style.textTransform = "lowercase";
+        emailInput.addEventListener("input", function () {
+          this.value = this.value.toLowerCase();
+        });
+        emailInput.addEventListener("blur", function () {
+          this.value = this.value.trim().toLowerCase();
+        });
+      }
+
+      // Backup original options
+      if (reportsToSelect) {
+        originalReportsToOptions = Array.from(reportsToSelect.options).map(opt => ({
+          value: opt.value,
+          text: (opt.value === "" && (opt.text.includes("---") || !opt.text.trim())) ? "Select Reporting" : opt.text,
+          selected: opt.selected
+        }));
+      }
+
+      // Clean up empty placeholder options for department & speciality
+      const deptSelectEl = document.getElementById("id_department");
+      if (deptSelectEl && deptSelectEl.options.length > 0) {
+        if (deptSelectEl.options[0].value === "" && (deptSelectEl.options[0].text.includes("---") || !deptSelectEl.options[0].text.trim())) {
+          deptSelectEl.options[0].text = "Select Department";
+        }
+      }
+      const specSelectEl = document.getElementById("id_speciality");
+      if (specSelectEl && specSelectEl.options.length > 0) {
+        if (specSelectEl.options[0].value === "" && (specSelectEl.options[0].text.includes("---") || !specSelectEl.options[0].text.trim())) {
+          specSelectEl.options[0].text = "Select Speciality";
+        }
+      }
+
+      const dailyCallDiv = document.getElementById("div_id_daily_call_target");
+      const dailyCallInput = document.getElementById("id_daily_call_target");
+
+      function toggleFields() {
+        if (!roleField) return;
+
+        const selectedHospId = hospField ? String(hospField.value || "").trim() : "";
+        const bizInfo = selectedHospId && businessMetaMap ? businessMetaMap[selectedHospId] : null;
+        const currentIndustry = (bizInfo ? bizInfo.industry : null) || "{{ biz_industry|default:'ACADEMY' }}";
+        const isHospitalIndustry = currentIndustry === "HOSPITAL";
+
+        const isDoctor = roleField.value === "DOCTOR" && isHospitalIndustry;
+        const isEligibleForSelfAssign = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
+        const isEligibleForCallingTarget = ["COUNSELLOR", "HR", "LEAD_ATTENDENT"].includes(roleField.value);
+
+        if (deptDiv) {
+          deptDiv.style.display = isDoctor ? "block" : "none";
+          const deptInput = document.getElementById("id_department");
+          if (deptInput) deptInput.disabled = !isDoctor;
+        }
+        if (specDiv) {
+          specDiv.style.display = isDoctor ? "block" : "none";
+          const specInput = document.getElementById("id_speciality");
+          if (specInput) specInput.disabled = !isDoctor;
+        }
+
+        const importExportDiv = document.getElementById("div_id_can_import_export");
+        if (importExportDiv) {
+          const hideImportExport = roleField.value === "DOCTOR";
+          importExportDiv.style.display = hideImportExport ? "none" : "";
+          const importExportInput = document.getElementById("id_can_import_export");
+          if (importExportInput) {
+            importExportInput.disabled = hideImportExport;
+            if (hideImportExport) importExportInput.checked = false;
+          }
+        }
+
+        // Hide & disable Daily Calling Target for Doctor / Admin / Non-telecaller roles
+        if (dailyCallDiv) {
+          dailyCallDiv.style.display = isEligibleForCallingTarget ? "block" : "none";
+          if (dailyCallInput) {
+            if (!isEligibleForCallingTarget) {
+              dailyCallInput.value = isDoctor ? "0" : "0";
+              dailyCallInput.disabled = true;
+            } else {
+              dailyCallInput.disabled = false;
+              if (!dailyCallInput.value || parseInt(dailyCallInput.value) <= 0) {
+                dailyCallInput.value = "100";
+              }
+            }
+          }
+        }
+
+        if (allowSelfAssignDiv) {
+          allowSelfAssignDiv.style.display = isEligibleForSelfAssign ? "block" : "none";
+          if (allowSelfAssignInput) {
+            if (!isEligibleForSelfAssign) {
+              allowSelfAssignInput.checked = false;
+              allowSelfAssignInput.disabled = true;
+            } else {
+              allowSelfAssignInput.disabled = false;
+            }
+          }
+        }
+
+        if (bulkLimitDiv) {
+          const isSelfAssignChecked = allowSelfAssignInput ? allowSelfAssignInput.checked : true;
+          const showBulk = isEligibleForSelfAssign && isSelfAssignChecked;
+          bulkLimitDiv.style.display = showBulk ? "block" : "none";
+          if (bulkLimitInput) {
+            if (!showBulk) {
+              bulkLimitInput.value = "0";
+              bulkLimitInput.disabled = true;
+            } else {
+              bulkLimitInput.disabled = false;
+              if (!bulkLimitInput.value || parseInt(bulkLimitInput.value) <= 0) {
+                bulkLimitInput.value = "25";
+              }
+            }
+          }
+        }
+
+        if (!isDoctor) {
+          const deptSelect = document.getElementById("id_department");
+          const specSelect = document.getElementById("id_speciality");
+
+          if (deptSelect) {
             deptSelect.value = "";
             if (deptSelect.tomselect) deptSelect.tomselect.clear();
-        }
-        if(specSelect) {
+          }
+          if (specSelect) {
             specSelect.value = "";
             if (specSelect.tomselect) specSelect.tomselect.clear();
+          }
         }
-      }
-      
-      // Superadmin Tenant logic
-      if (hospDiv) hospDiv.style.display = "block";
 
-      // Business & Branch Dynamic Scoping
-      updateBusinessScope();
+        // Superadmin Tenant logic
+        if (hospDiv) hospDiv.style.display = "block";
 
-      // Hierarchy logic for reports_to
-      if (reportsToSelect && originalReportsToOptions) {
-        const selectedRole = roleField.value;
-        let allowedRoles = ["ADMIN", "SUPER_ADMIN", "MANAGER"]; // default
-        
-        if (selectedRole === "ADMIN") {
+        // Business & Branch Dynamic Scoping
+        updateBusinessScope();
+
+        // Hierarchy logic for reports_to
+        if (reportsToSelect && originalReportsToOptions) {
+          const selectedRole = roleField.value;
+          let allowedRoles = ["ADMIN", "SUPER_ADMIN", "MANAGER"]; // default
+
+          if (selectedRole === "ADMIN") {
             allowedRoles = ["ADMIN", "SUPER_ADMIN"];
-        }
+          }
 
-        let currentValue = reportsToSelect.value;
-        let hasTomSelect = !!reportsToSelect.tomselect;
-        
-        if (hasTomSelect) {
+          let currentValue = reportsToSelect.value;
+          let hasTomSelect = !!reportsToSelect.tomselect;
+
+          if (hasTomSelect) {
             currentValue = reportsToSelect.tomselect.getValue();
             reportsToSelect.tomselect.destroy();
-        }
+          }
 
-        // Clear native select
-        reportsToSelect.innerHTML = "";
-        
-        let valueStillValid = false;
+          // Clear native select
+          reportsToSelect.innerHTML = "";
 
-        // Re-populate native select with allowed options
-        originalReportsToOptions.forEach(optData => {
+          let valueStillValid = false;
+
+          // Re-populate native select with allowed options
+          originalReportsToOptions.forEach(optData => {
             if (optData.value === "") {
-                const opt = new Option(optData.text || "Select Reporting", optData.value);
-                reportsToSelect.add(opt);
-                return;
+              const opt = new Option(optData.text || "Select Reporting", optData.value);
+              reportsToSelect.add(opt);
+              return;
             }
             const userRole = userRolesMap[optData.value];
             if (userRole && allowedRoles.includes(userRole)) {
-                const opt = new Option(optData.text, optData.value);
-                if (optData.value === currentValue) {
-                    opt.selected = true;
-                    valueStillValid = true;
-                }
-                reportsToSelect.add(opt);
+              const opt = new Option(optData.text, optData.value);
+              if (optData.value === currentValue) {
+                opt.selected = true;
+                valueStillValid = true;
+              }
+              reportsToSelect.add(opt);
             }
-        });
-
-        if (!valueStillValid) {
-            reportsToSelect.value = "";
-        }
-
-        // Re-init Tom Select if it was there before, or let the footer init it if it's the first time
-        if (hasTomSelect && typeof TomSelect !== 'undefined') {
-            new TomSelect(reportsToSelect, {
-                create: false,
-                maxOptions: 100,
-                allowEmptyOption: true,
-                placeholder: 'Select Reporting'
-            });
-        }
-      }
-    }
-
-    function updateBusinessScope() {
-      const selectedHospId = hospField ? String(hospField.value || "").trim() : "";
-      const bizInfo = selectedHospId && businessMetaMap ? businessMetaMap[selectedHospId] : null;
-
-      // 1. DYNAMIC ROLE FILTERING BASED ON BUSINESS INDUSTRY & ALLOWED ROLES
-      if (roleField && originalRoleOptions) {
-        let allowedRoleValues = null;
-        if (bizInfo && Array.isArray(bizInfo.allowed_roles) && bizInfo.allowed_roles.length > 0) {
-          allowedRoleValues = bizInfo.allowed_roles.map(r => r.value);
-        }
-
-        const currentRoleVal = roleField.value;
-        const hasTomSelect = !!roleField.tomselect;
-        if (hasTomSelect) {
-          roleField.tomselect.destroy();
-        }
-
-        roleField.innerHTML = "";
-        let roleStillValid = false;
-
-        originalRoleOptions.forEach(optData => {
-          if (optData.value === "") {
-            roleField.add(new Option(optData.text || "Select Employee Role", ""));
-            return;
-          }
-          if (!allowedRoleValues || allowedRoleValues.includes(optData.value)) {
-            const opt = new Option(optData.text, optData.value);
-            if (optData.value === currentRoleVal) {
-              opt.selected = true;
-              roleStillValid = true;
-            }
-            roleField.add(opt);
-          }
-        });
-
-        if (!roleStillValid && currentRoleVal) {
-          roleField.value = "";
-        }
-
-        if (hasTomSelect && typeof TomSelect !== 'undefined') {
-          new TomSelect(roleField, {
-            create: false,
-            maxOptions: 50,
-            allowEmptyOption: true,
-            placeholder: 'Select Employee Role'
           });
-          roleField.tomselect.on("change", toggleFields);
+
+          if (!valueStillValid) {
+            reportsToSelect.value = "";
+          }
+
+          // Re-init Tom Select if it was there before, or let the footer init it if it's the first time
+          if (hasTomSelect && typeof TomSelect !== 'undefined') {
+            new TomSelect(reportsToSelect, {
+              create: false,
+              maxOptions: 100,
+              allowEmptyOption: true,
+              placeholder: 'Select Reporting'
+            });
+          }
         }
       }
 
-      // 2. DYNAMIC BRANCH VISIBILITY & FILTERING STRICTLY BY SELECTED BUSINESS
-      const branchItems = document.querySelectorAll(".branch-item-col");
-      let visibleBranchCount = 0;
+      function updateBusinessScope() {
+        const selectedHospId = hospField ? String(hospField.value || "").trim() : "";
+        const bizInfo = selectedHospId && businessMetaMap ? businessMetaMap[selectedHospId] : null;
 
-      if (bizInfo && Array.isArray(bizInfo.branches) && bizInfo.branches.length > 0) {
-        const allowedBranchIdStrs = bizInfo.branches.map(b => String(b.id));
-        branchItems.forEach(item => {
-          const bId = String(item.getAttribute("data-branch-id") || "");
-          const cb = item.querySelector(".branch-checkbox");
-          if (allowedBranchIdStrs.includes(bId)) {
-            item.style.display = "";
-            if (cb) cb.disabled = false;
-            visibleBranchCount++;
-          } else {
+        // 1. DYNAMIC ROLE FILTERING BASED ON BUSINESS INDUSTRY & ALLOWED ROLES
+        if (roleField && originalRoleOptions) {
+          let allowedRoleValues = null;
+          if (bizInfo && Array.isArray(bizInfo.allowed_roles) && bizInfo.allowed_roles.length > 0) {
+            allowedRoleValues = bizInfo.allowed_roles.map(r => r.value);
+          }
+
+          const currentRoleVal = roleField.value;
+          const hasTomSelect = !!roleField.tomselect;
+          if (hasTomSelect) {
+            roleField.tomselect.destroy();
+          }
+
+          roleField.innerHTML = "";
+          let roleStillValid = false;
+
+          originalRoleOptions.forEach(optData => {
+            if (optData.value === "") {
+              roleField.add(new Option(optData.text || "Select Employee Role", ""));
+              return;
+            }
+            if (!allowedRoleValues || allowedRoleValues.includes(optData.value)) {
+              const opt = new Option(optData.text, optData.value);
+              if (optData.value === currentRoleVal) {
+                opt.selected = true;
+                roleStillValid = true;
+              }
+              roleField.add(opt);
+            }
+          });
+
+          if (!roleStillValid && currentRoleVal) {
+            roleField.value = "";
+          }
+
+          if (hasTomSelect && typeof TomSelect !== 'undefined') {
+            new TomSelect(roleField, {
+              create: false,
+              maxOptions: 50,
+              allowEmptyOption: true,
+              placeholder: 'Select Employee Role'
+            });
+            roleField.tomselect.on("change", toggleFields);
+          }
+        }
+
+        // 2. DYNAMIC BRANCH VISIBILITY & FILTERING STRICTLY BY SELECTED BUSINESS
+        const branchItems = document.querySelectorAll(".branch-item-col");
+        let visibleBranchCount = 0;
+
+        if (bizInfo && Array.isArray(bizInfo.branches) && bizInfo.branches.length > 0) {
+          const allowedBranchIdStrs = bizInfo.branches.map(b => String(b.id));
+          branchItems.forEach(item => {
+            const bId = String(item.getAttribute("data-branch-id") || "");
+            const cb = item.querySelector(".branch-checkbox");
+            if (allowedBranchIdStrs.includes(bId)) {
+              item.style.display = "";
+              if (cb) cb.disabled = false;
+              visibleBranchCount++;
+            } else {
+              item.style.display = "none";
+              if (cb) {
+                cb.checked = false;
+                cb.disabled = true; // Prevents form submission of branches from other businesses
+              }
+            }
+          });
+        } else {
+          // No business selected or business has 0 branches: hide & disable all
+          branchItems.forEach(item => {
             item.style.display = "none";
+            const cb = item.querySelector(".branch-checkbox");
             if (cb) {
               cb.checked = false;
-              cb.disabled = true; // Prevents form submission of branches from other businesses
+              cb.disabled = true;
+            }
+          });
+          visibleBranchCount = 0;
+        }
+
+        // If business has branches (>= 1), show Assigned Branches section; otherwise hide
+        if (assignedBranchesDiv) {
+          assignedBranchesDiv.style.display = visibleBranchCount > 0 ? "block" : "none";
+        }
+
+        if (allowBranchTransferDiv) {
+          if (visibleBranchCount > 1) {
+            allowBranchTransferDiv.style.display = "block";
+            if (allowBranchTransferInput) allowBranchTransferInput.disabled = false;
+          } else {
+            allowBranchTransferDiv.style.display = "none";
+            if (allowBranchTransferInput) {
+              allowBranchTransferInput.checked = false;
+              allowBranchTransferInput.disabled = true;
             }
           }
-        });
-      } else {
-        // No business selected or business has 0 branches: hide & disable all
-        branchItems.forEach(item => {
-          item.style.display = "none";
-          const cb = item.querySelector(".branch-checkbox");
-          if (cb) {
-            cb.checked = false;
-            cb.disabled = true;
-          }
-        });
-        visibleBranchCount = 0;
-      }
-
-      // If business has branches (>= 1), show Assigned Branches section; otherwise hide
-      if (assignedBranchesDiv) {
-        assignedBranchesDiv.style.display = visibleBranchCount > 0 ? "block" : "none";
-      }
-
-      if (allowBranchTransferDiv) {
-        if (visibleBranchCount > 1) {
-          allowBranchTransferDiv.style.display = "block";
-          if (allowBranchTransferInput) allowBranchTransferInput.disabled = false;
-        } else {
-          allowBranchTransferDiv.style.display = "none";
-          if (allowBranchTransferInput) {
-            allowBranchTransferInput.checked = false;
-            allowBranchTransferInput.disabled = true;
-          }
         }
       }
-    }
 
-    // Real-time Username Duplicity & Suggestions
-    const usernameInput = document.getElementById("id_username");
-    const usernameFeedback = document.getElementById("username_feedback_box");
-    let usernameTimeout = null;
+      // Real-time Username Duplicity & Suggestions
+      const usernameInput = document.getElementById("id_username");
+      const usernameFeedback = document.getElementById("username_feedback_box");
+      let usernameTimeout = null;
 
-    if (usernameInput) {
-      usernameInput.setAttribute("autocomplete", "off");
-      
-      function checkUsername(val) {
-        if (!val || val.trim().length < 2) {
-          if (usernameFeedback) usernameFeedback.style.display = "none";
-          usernameInput.classList.remove("is-invalid", "is-valid");
-          return;
-        }
-        
-        const currentUserId = "{% if obj %}{{ obj.id }}{% endif %}";
-        fetch(`{% url 'accounts:check_username' %}?username=${encodeURIComponent(val.trim())}&exclude_id=${currentUserId}`)
-          .then(res => res.json())
-          .then(data => {
-            if (!usernameFeedback) return;
-            usernameFeedback.style.display = "block";
-            
-            if (data.available) {
-              usernameInput.classList.remove("is-invalid");
-              usernameInput.classList.add("is-valid");
-              usernameFeedback.innerHTML = `
+      if (usernameInput) {
+        usernameInput.setAttribute("autocomplete", "off");
+
+        function checkUsername(val) {
+          if (!val || val.trim().length < 2) {
+            if (usernameFeedback) usernameFeedback.style.display = "none";
+            usernameInput.classList.remove("is-invalid", "is-valid");
+            return;
+          }
+
+          const currentUserId = "{% if obj %}{{ obj.id }}{% endif %}";
+          fetch(`{% url 'accounts:check_username' %}?username=${encodeURIComponent(val.trim())}&exclude_id=${currentUserId}`)
+            .then(res => res.json())
+            .then(data => {
+              if (!usernameFeedback) return;
+              usernameFeedback.style.display = "block";
+
+              if (data.available) {
+                usernameInput.classList.remove("is-invalid");
+                usernameInput.classList.add("is-valid");
+                usernameFeedback.innerHTML = `
                 <div class="small text-success fw-medium">
                   <i class="fa-solid fa-circle-check me-1"></i> Username <strong>@${data.username}</strong> is available!
                 </div>`;
-            } else {
-              usernameInput.classList.remove("is-valid");
-              usernameInput.classList.add("is-invalid");
-              let suggestionsHtml = "";
-              if (data.suggestions && data.suggestions.length > 0) {
-                suggestionsHtml = `
+              } else {
+                usernameInput.classList.remove("is-valid");
+                usernameInput.classList.add("is-invalid");
+                let suggestionsHtml = "";
+                if (data.suggestions && data.suggestions.length > 0) {
+                  suggestionsHtml = `
                   <div class="mt-1">
                     <span class="text-muted small me-1">Suggested usernames:</span>
                     <div class="d-flex flex-wrap gap-1 mt-1">
@@ -632,167 +715,167 @@
                       `).join('')}
                     </div>
                   </div>`;
-              }
-              usernameFeedback.innerHTML = `
+                }
+                usernameFeedback.innerHTML = `
                 <div class="small text-danger fw-semibold">
                   <i class="fa-solid fa-triangle-exclamation me-1"></i> ${data.message}
                 </div>
                 ${suggestionsHtml}`;
-            }
-          })
-          .catch(err => {
-            console.error("Username check error", err);
-          });
+              }
+            })
+            .catch(err => {
+              console.error("Username check error", err);
+            });
+        }
+
+        usernameInput.addEventListener("input", function () {
+          clearTimeout(usernameTimeout);
+          const val = this.value;
+          usernameTimeout = setTimeout(() => { checkUsername(val); }, 300);
+        });
+
+        usernameInput.addEventListener("blur", function () {
+          checkUsername(this.value);
+        });
       }
 
-      usernameInput.addEventListener("input", function() {
-        clearTimeout(usernameTimeout);
-        const val = this.value;
-        usernameTimeout = setTimeout(() => { checkUsername(val); }, 300);
-      });
+      // Real-time Password Confirmation Matching & Error Clearing
+      const p1 = document.getElementById("id_password1");
+      const p2 = document.getElementById("id_password2");
+      const matchFeedback = document.getElementById("password_match_feedback");
 
-      usernameInput.addEventListener("blur", function() {
-        checkUsername(this.value);
-      });
-    }
-
-    // Real-time Password Confirmation Matching & Error Clearing
-    const p1 = document.getElementById("id_password1");
-    const p2 = document.getElementById("id_password2");
-    const matchFeedback = document.getElementById("password_match_feedback");
-
-    function clearOldServerPasswordErrors() {
-      document.querySelectorAll(".password-server-error").forEach(el => {
-        el.style.display = "none";
-      });
-    }
-
-    const matchIcon = document.getElementById("password2_match_icon");
-
-    function checkPasswordMatch() {
-      clearOldServerPasswordErrors();
-      if (!p1 || !p2) return;
-      const v1 = p1.value;
-      const v2 = p2.value;
-
-      if (!v2) {
-        if (matchFeedback) matchFeedback.style.display = "none";
-        if (matchIcon) matchIcon.style.display = "none";
-        p2.classList.remove("is-valid", "is-invalid");
-        return;
+      function clearOldServerPasswordErrors() {
+        document.querySelectorAll(".password-server-error").forEach(el => {
+          el.style.display = "none";
+        });
       }
 
-      if (v1 === v2) {
-        p2.classList.remove("is-invalid");
-        p2.classList.add("is-valid");
-        if (matchIcon) {
-          matchIcon.style.display = "inline-flex";
-          matchIcon.className = "password-match-icon text-success";
-          matchIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+      const matchIcon = document.getElementById("password2_match_icon");
+
+      function checkPasswordMatch() {
+        clearOldServerPasswordErrors();
+        if (!p1 || !p2) return;
+        const v1 = p1.value;
+        const v2 = p2.value;
+
+        if (!v2) {
+          if (matchFeedback) matchFeedback.style.display = "none";
+          if (matchIcon) matchIcon.style.display = "none";
+          p2.classList.remove("is-valid", "is-invalid");
+          return;
         }
-        if (matchFeedback) {
-          matchFeedback.style.display = "block";
-          matchFeedback.className = "mt-1 small fw-semibold text-success";
-          matchFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
-        }
-      } else {
-        p2.classList.remove("is-valid");
-        p2.classList.add("is-invalid");
-        if (matchIcon) {
-          matchIcon.style.display = "inline-flex";
-          matchIcon.className = "password-match-icon text-danger";
-          matchIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
-        }
-        if (matchFeedback) {
-          matchFeedback.style.display = "block";
-          matchFeedback.className = "mt-1 small fw-semibold text-danger";
-          matchFeedback.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Passwords do not match!';
+
+        if (v1 === v2) {
+          p2.classList.remove("is-invalid");
+          p2.classList.add("is-valid");
+          if (matchIcon) {
+            matchIcon.style.display = "inline-flex";
+            matchIcon.className = "password-match-icon text-success";
+            matchIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+          }
+          if (matchFeedback) {
+            matchFeedback.style.display = "block";
+            matchFeedback.className = "mt-1 small fw-semibold text-success";
+            matchFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
+          }
+        } else {
+          p2.classList.remove("is-valid");
+          p2.classList.add("is-invalid");
+          if (matchIcon) {
+            matchIcon.style.display = "inline-flex";
+            matchIcon.className = "password-match-icon text-danger";
+            matchIcon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+          }
+          if (matchFeedback) {
+            matchFeedback.style.display = "block";
+            matchFeedback.className = "mt-1 small fw-semibold text-danger";
+            matchFeedback.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Passwords do not match!';
+          }
         }
       }
-    }
 
-    if (p1 && p2) {
-      p1.addEventListener("input", checkPasswordMatch);
-      p2.addEventListener("input", checkPasswordMatch);
-    }
+      if (p1 && p2) {
+        p1.addEventListener("input", checkPasswordMatch);
+        p2.addEventListener("input", checkPasswordMatch);
+      }
 
-    if (hospField) {
-      hospField.addEventListener("change", toggleFields);
-      setTimeout(() => {
-        if (hospField.tomselect) {
-          hospField.tomselect.on("change", toggleFields);
-        }
-      }, 500);
-    }
+      if (hospField) {
+        hospField.addEventListener("change", toggleFields);
+        setTimeout(() => {
+          if (hospField.tomselect) {
+            hospField.tomselect.on("change", toggleFields);
+          }
+        }, 500);
+      }
 
-    if (roleField) {
-      // Listen to native change event (Tom Select triggers this)
-      roleField.addEventListener("change", toggleFields);
-      
-      // Also bind to Tom Select event if initialized
-      setTimeout(() => {
+      if (roleField) {
+        // Listen to native change event (Tom Select triggers this)
+        roleField.addEventListener("change", toggleFields);
+
+        // Also bind to Tom Select event if initialized
+        setTimeout(() => {
           if (roleField.tomselect) {
-              roleField.tomselect.on("change", toggleFields);
+            roleField.tomselect.on("change", toggleFields);
           }
           // The first time toggleFields runs, tomSelect on reports_to might not be initialized yet.
           // Let's run toggleFields again after Tom Selects have initialized globally in footer
           setTimeout(toggleFields, 100);
-      }, 500);
-    }
-
-    toggleFields(); // Initial call to sync field visibility right away
-
-    // Safety submit guard: Log invalid elements if browser blocks submit, ensure form submits cleanly
-    const userForm = document.getElementById("userForm");
-    const saveBtn = document.getElementById("saveUserBtn");
-
-    if (userForm) {
-      userForm.addEventListener("invalid", function(e) {
-        console.warn("Form validation blocked on element:", e.target);
-      }, true);
-    }
-  });
-
-  window.applyUsernameSuggestion = function(suggestedVal) {
-    const uInput = document.getElementById("id_username");
-    if (uInput) {
-      uInput.value = suggestedVal;
-      uInput.dispatchEvent(new Event('input'));
-    }
-  };
-
-  window.togglePasswordVisibility = function(fieldId, btn) {
-    const input = document.getElementById(fieldId) || (btn ? btn.parentElement.querySelector('input') : null);
-    if (!input) return;
-    const icon = btn ? btn.querySelector('i') : null;
-    if (input.type === 'password') {
-      // Unmask: password is now visible, eye icon is open
-      input.type = 'text';
-      if (icon) {
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
+        }, 500);
       }
-    } else {
-      // Mask: password is now hidden, eye icon is off/slashed
-      input.type = 'password';
-      if (icon) {
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-      }
-    }
-  };
 
-  window.toggleAllBranches = function(select) {
-    document.querySelectorAll(".branch-item-col").forEach(item => {
-      if (item.style.display !== "none") {
-        const cb = item.querySelector(".branch-checkbox");
-        if (cb && !cb.disabled) {
-          cb.checked = select;
-        }
+      toggleFields(); // Initial call to sync field visibility right away
+
+      // Safety submit guard: Log invalid elements if browser blocks submit, ensure form submits cleanly
+      const userForm = document.getElementById("userForm");
+      const saveBtn = document.getElementById("saveUserBtn");
+
+      if (userForm) {
+        userForm.addEventListener("invalid", function (e) {
+          console.warn("Form validation blocked on element:", e.target);
+        }, true);
       }
     });
-  };
-</script>
+
+    window.applyUsernameSuggestion = function (suggestedVal) {
+      const uInput = document.getElementById("id_username");
+      if (uInput) {
+        uInput.value = suggestedVal;
+        uInput.dispatchEvent(new Event('input'));
+      }
+    };
+
+    window.togglePasswordVisibility = function (fieldId, btn) {
+      const input = document.getElementById(fieldId) || (btn ? btn.parentElement.querySelector('input') : null);
+      if (!input) return;
+      const icon = btn ? btn.querySelector('i') : null;
+      if (input.type === 'password') {
+        // Unmask: password is now visible, eye icon is open
+        input.type = 'text';
+        if (icon) {
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      } else {
+        // Mask: password is now hidden, eye icon is off/slashed
+        input.type = 'password';
+        if (icon) {
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        }
+      }
+    };
+
+    window.toggleAllBranches = function (select) {
+      document.querySelectorAll(".branch-item-col").forEach(item => {
+        if (item.style.display !== "none") {
+          const cb = item.querySelector(".branch-checkbox");
+          if (cb && !cb.disabled) {
+            cb.checked = select;
+          }
+        }
+      });
+    };
+  </script>
 
 </div>
 {% endblock %}

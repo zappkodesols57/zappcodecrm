@@ -5825,6 +5825,25 @@ def zappcode_academy_website_lead(request):
         notes=f"Website Contact Form Inquiry" + (f" | Course: {course_input}" if course_input else ""),
     )
 
+    try:
+        from notifications.models import Notification
+        recipients = User.objects.filter(
+            hospital=business,
+            is_active=True,
+            role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.COUNSELLOR, User.Role.LEAD_ATTENDENT],
+        )
+        Notification.objects.bulk_create([
+            Notification(
+                user=u,
+                title="New Web Enquiry Received",
+                message=f"{lead.name} ({lead.mobile}) submitted a website inquiry.",
+                link=f"/leads/{lead.pk}/",
+            )
+            for u in recipients
+        ])
+    except Exception:
+        pass
+
     resp = JsonResponse(
         {
             "success": True,

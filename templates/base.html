@@ -47,16 +47,26 @@
       display: none;
       animation: fadeInQuickPop 0.15s ease-out;
     }
+
     @keyframes fadeInQuickPop {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     .custom-12h-time-picker-popover .time-picker-col {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
+
     .custom-12h-time-picker-popover .time-picker-col-title {
       font-size: 0.7rem;
       font-weight: 700;
@@ -65,6 +75,7 @@
       margin-bottom: 6px;
       letter-spacing: 0.5px;
     }
+
     .custom-12h-time-picker-popover .time-picker-scroll-list {
       max-height: 180px;
       overflow-y: auto;
@@ -75,13 +86,16 @@
       gap: 2px;
       padding: 2px;
     }
+
     .custom-12h-time-picker-popover .time-picker-scroll-list::-webkit-scrollbar {
       width: 4px;
     }
+
     .custom-12h-time-picker-popover .time-picker-scroll-list::-webkit-scrollbar-thumb {
       background: #cbd5e1;
       border-radius: 4px;
     }
+
     .custom-12h-time-picker-popover .time-picker-cell {
       padding: 5px 0;
       width: 100%;
@@ -94,15 +108,18 @@
       transition: all 0.12s ease;
       user-select: none;
     }
+
     .custom-12h-time-picker-popover .time-picker-cell:hover {
       background: #f1f5f9;
       color: #0f2744;
     }
+
     .custom-12h-time-picker-popover .time-picker-cell.active {
       background: #0f2744 !important;
       color: #ffffff !important;
       font-weight: 700 !important;
     }
+
     .custom-12h-time-picker-popover .ampm-toggle-col {
       display: flex;
       flex-direction: column;
@@ -111,6 +128,7 @@
       padding-left: 8px;
       border-left: 1px solid #e2e8f0;
     }
+
     .custom-12h-time-picker-popover .ampm-btn {
       padding: 6px 10px;
       font-size: 0.78rem;
@@ -122,6 +140,7 @@
       cursor: pointer;
       transition: all 0.15s ease;
     }
+
     .custom-12h-time-picker-popover .ampm-btn.active {
       background: #0f2744 !important;
       border-color: #0f2744 !important;
@@ -143,13 +162,20 @@
       /* Borders */
 
       /* Enterprise Type Scale */
-      --text-xs: 0.75rem;     /* 12px - Badges, micro tags */
-      --text-sm: 0.8125rem;   /* 13px - Secondary meta, subtext */
-      --text-base: 0.875rem;  /* 14px - Standard table data, body text */
-      --text-md: 0.9375rem;   /* 15px - Menu items, important labels */
-      --text-lg: 1.125rem;    /* 18px - Section headers */
-      --text-xl: 1.35rem;     /* 21.6px - Card titles */
-      --text-2xl: 1.85rem;    /* 29.6px - Big Hero KPI values */
+      --text-xs: 0.75rem;
+      /* 12px - Badges, micro tags */
+      --text-sm: 0.8125rem;
+      /* 13px - Secondary meta, subtext */
+      --text-base: 0.875rem;
+      /* 14px - Standard table data, body text */
+      --text-md: 0.9375rem;
+      /* 15px - Menu items, important labels */
+      --text-lg: 1.125rem;
+      /* 18px - Section headers */
+      --text-xl: 1.35rem;
+      /* 21.6px - Card titles */
+      --text-2xl: 1.85rem;
+      /* 29.6px - Big Hero KPI values */
 
       /* Consistent Radii */
       --radius-sm: 6px;
@@ -222,12 +248,10 @@
       left: -120%;
       width: 100%;
       height: 100%;
-      background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.16) 50%,
-        rgba(255, 255, 255, 0) 100%
-      );
+      background: linear-gradient(90deg,
+          rgba(255, 255, 255, 0) 0%,
+          rgba(255, 255, 255, 0.16) 50%,
+          rgba(255, 255, 255, 0) 100%);
       transform: skewX(-20deg);
       transition: none;
       pointer-events: none;
@@ -291,12 +315,10 @@
     .btn-secondary::after,
     .btn-outline-primary::after,
     .btn-outline-secondary::after {
-      background: linear-gradient(
-        90deg,
-        rgba(15, 23, 42, 0) 0%,
-        rgba(15, 23, 42, 0.05) 50%,
-        rgba(15, 23, 42, 0) 100%
-      );
+      background: linear-gradient(90deg,
+          rgba(15, 23, 42, 0) 0%,
+          rgba(15, 23, 42, 0.05) 50%,
+          rgba(15, 23, 42, 0) 100%);
     }
 
     /* 3. Outline Primary */
@@ -416,6 +438,7 @@
       overflow: visible !important;
       padding: 0 !important;
     }
+
     .notif-bell-trigger::after {
       display: none !important;
     }
@@ -440,9 +463,12 @@
     /* Hide scrollbars cleanly across browsers while keeping scroll functionality */
     .sidebar,
     .sidebar-nav-container {
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE / Edge */
+      scrollbar-width: none;
+      /* Firefox */
+      -ms-overflow-style: none;
+      /* IE / Edge */
     }
+
     .sidebar::-webkit-scrollbar,
     .sidebar-nav-container::-webkit-scrollbar {
       display: none;
@@ -666,7 +692,7 @@
     /* ==========================================================================
        SIDEBAR & RESPONSIVE MINIMIZE / HOVER-EXPAND / PINNED MAXIMIZE SYSTEM
        ========================================================================== */
-    
+
     /* Default: Minimized rail (70px) */
     .sidebar {
       width: var(--sidebar-collapsed-w);
@@ -683,6 +709,7 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       min-height: 58px;
     }
+
     .sidebar-brand-inner {
       display: flex;
       align-items: center;
@@ -690,6 +717,7 @@
       overflow: hidden;
       width: 100%;
     }
+
     .sidebar-logo-wrap {
       width: 44px;
       height: 38px;
@@ -702,6 +730,7 @@
       padding: 3px 5px;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
     }
+
     .sidebar-brand-logo {
       max-height: 32px;
       max-width: 36px;
@@ -710,6 +739,7 @@
       object-fit: contain;
       display: block;
     }
+
     .sidebar-minimize-btn {
       border: none;
       background: rgba(255, 255, 255, 0.08);
@@ -720,6 +750,7 @@
       justify-content: center;
       transition: background 0.15s ease;
     }
+
     .sidebar-minimize-btn:hover {
       background: rgba(255, 255, 255, 0.18);
       color: #ffffff;
@@ -738,13 +769,16 @@
       padding: 0.9rem 0.35rem !important;
       justify-content: center !important;
     }
+
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .sidebar-brand-inner {
       justify-content: center !important;
       gap: 0 !important;
     }
+
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .sidebar-logo-wrap {
       margin: 0 auto !important;
     }
+
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .brand-text,
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .section-title,
     body:not(.sidebar-pinned-open) .sidebar:not(:hover) .section-arrow,
@@ -759,11 +793,13 @@
       padding: 0.9rem 1.15rem !important;
       justify-content: space-between !important;
     }
+
     .sidebar:hover .sidebar-brand-inner,
     body.sidebar-pinned-open .sidebar .sidebar-brand-inner {
       justify-content: flex-start !important;
       gap: 10px !important;
     }
+
     .sidebar:hover .sidebar-logo-wrap,
     body.sidebar-pinned-open .sidebar .sidebar-logo-wrap {
       margin: 0 !important;
@@ -771,6 +807,7 @@
       max-width: 90px !important;
       padding: 3px 8px !important;
     }
+
     .sidebar:hover .sidebar-brand-logo,
     body.sidebar-pinned-open .sidebar .sidebar-brand-logo {
       max-width: 78px !important;
@@ -1111,16 +1148,19 @@
       color: #b91c1c !important;
       border-color: #fecaca !important;
     }
+
     .badge-warm {
       background-color: #fff7ed !important;
       color: #c2410c !important;
       border-color: #fed7aa !important;
     }
+
     .badge-cold {
       background-color: #eff6ff !important;
       color: #1d4ed8 !important;
       border-color: #bfdbfe !important;
     }
+
     .badge-freeze {
       background-color: #f8fafc !important;
       color: #475569 !important;
@@ -1156,6 +1196,7 @@
       cursor: pointer;
       transition: background-color 0.15s ease-in-out;
     }
+
     tr.clickable-lead-row:hover,
     tr[data-href]:hover {
       background-color: rgba(14, 165, 233, 0.04) !important;
@@ -1472,21 +1513,56 @@
 
     /* 1. Global Responsive Typography & Compact Headings */
     @media (max-width: 767.98px) {
+
       /* Global page headings compact on mobile */
-      h1, .h1 { font-size: 1.25rem !important; line-height: 1.25 !important; }
-      h2, .h2 { font-size: 1.15rem !important; line-height: 1.25 !important; }
-      h3, .h3 { font-size: 1.05rem !important; line-height: 1.25 !important; }
-      h4, .h4 { font-size: 0.98rem !important; line-height: 1.25 !important; }
-      h5, .h5 { font-size: 0.90rem !important; line-height: 1.25 !important; }
-      h6, .h6 { font-size: 0.82rem !important; line-height: 1.25 !important; }
-      .page-title { font-size: 1.05rem !important; }
+      h1,
+      .h1 {
+        font-size: 1.25rem !important;
+        line-height: 1.25 !important;
+      }
+
+      h2,
+      .h2 {
+        font-size: 1.15rem !important;
+        line-height: 1.25 !important;
+      }
+
+      h3,
+      .h3 {
+        font-size: 1.05rem !important;
+        line-height: 1.25 !important;
+      }
+
+      h4,
+      .h4 {
+        font-size: 0.98rem !important;
+        line-height: 1.25 !important;
+      }
+
+      h5,
+      .h5 {
+        font-size: 0.90rem !important;
+        line-height: 1.25 !important;
+      }
+
+      h6,
+      .h6 {
+        font-size: 0.82rem !important;
+        line-height: 1.25 !important;
+      }
+
+      .page-title {
+        font-size: 1.05rem !important;
+      }
 
       /* Subtitles & Descriptions: Shorten on mobile or truncate nicely to 1 line */
-      .page-subtitle, .header-subtitle, .lead-subtitle,
-      .content > div > .d-flex p.text-muted.small,
-      .content > .d-flex p.text-muted.small,
-      .nelson-dashboard .d-flex > div > span.text-muted.small,
-      .nelson-dashboard .d-flex > div > p.text-muted.small {
+      .page-subtitle,
+      .header-subtitle,
+      .lead-subtitle,
+      .content>div>.d-flex p.text-muted.small,
+      .content>.d-flex p.text-muted.small,
+      .nelson-dashboard .d-flex>div>span.text-muted.small,
+      .nelson-dashboard .d-flex>div>p.text-muted.small {
         font-size: 0.72rem !important;
         line-height: 1.25 !important;
         display: -webkit-box;
@@ -1508,6 +1584,7 @@
         padding: 0.4rem 0.65rem !important;
         gap: 0.5rem !important;
       }
+
       .topbar .search-box {
         max-width: 100% !important;
         margin-top: 0.25rem;
@@ -1566,9 +1643,11 @@
       .kpi-card {
         padding: 0.5rem 0.65rem !important;
       }
+
       .kpi-card .value {
         font-size: 1.2rem !important;
       }
+
       .kpi-card .label {
         font-size: 0.68rem !important;
       }
@@ -1578,9 +1657,11 @@
         border-radius: 8px !important;
         margin-bottom: 0.6rem !important;
       }
+
       .card-header {
         padding: 0.45rem 0.65rem !important;
       }
+
       .card-body {
         padding: 0.6rem 0.65rem !important;
       }
@@ -1590,12 +1671,16 @@
         margin: 0.5rem !important;
         max-width: calc(100vw - 1rem) !important;
       }
+
       .modal-content {
         border-radius: 12px !important;
       }
-      .modal-header, .modal-footer {
+
+      .modal-header,
+      .modal-footer {
         padding: 0.65rem 0.85rem !important;
       }
+
       .modal-body {
         padding: 0.85rem 0.85rem !important;
         max-height: calc(85vh - 120px);
@@ -1613,13 +1698,16 @@
       }
 
       /* Form controls & selects touch friendly size without excess */
-      .form-control, .form-select, select.form-select {
+      .form-control,
+      .form-select,
+      select.form-select {
         font-size: 0.84rem !important;
         min-height: 36px !important;
       }
 
       /* Table data cells high density */
-      .table td, .table th {
+      .table td,
+      .table th {
         padding: 0.4rem 0.5rem !important;
         font-size: 0.78rem !important;
       }
@@ -1631,15 +1719,18 @@
         white-space: nowrap !important;
         line-height: 1.25 !important;
       }
+
       .btn.btn-sm {
         font-size: 0.72rem !important;
         padding: 0.25rem 0.55rem !important;
         min-height: 28px !important;
       }
+
       .btn.rounded-pill {
         padding-left: 0.75rem !important;
         padding-right: 0.75rem !important;
       }
+
       .btn-lg {
         font-size: 0.85rem !important;
         padding: 0.45rem 0.85rem !important;
@@ -1666,6 +1757,7 @@
       z-index: 1025;
       transition: opacity 0.25s ease;
     }
+
     .sidebar-backdrop.show {
       display: block;
     }
@@ -1679,9 +1771,11 @@
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3) !important;
         z-index: 1040 !important;
       }
+
       .sidebar.show {
         transform: translateX(0) !important;
       }
+
       /* Force display all labels and titles on mobile sidebar when open */
       .sidebar .brand-text,
       .sidebar .section-title,
@@ -1706,11 +1800,13 @@
         padding: 0.9rem 1.15rem !important;
         justify-content: space-between !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .sidebar-brand-inner,
       .sidebar .sidebar-brand-inner {
         justify-content: flex-start !important;
         gap: 10px !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .sidebar-logo-wrap,
       .sidebar .sidebar-logo-wrap {
         margin: 0 !important;
@@ -1718,6 +1814,7 @@
         max-width: 90px !important;
         padding: 3px 8px !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .sidebar-brand-logo,
       .sidebar .sidebar-brand-logo {
         max-width: 78px !important;
@@ -1730,18 +1827,21 @@
         padding: .55rem 1.25rem !important;
         gap: .75rem !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .nav-link i,
       .sidebar .nav-link i {
         display: inline-block !important;
         width: 20px !important;
         font-size: .9rem !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .nav-section-btn,
       .sidebar .nav-section-btn {
         justify-content: space-between !important;
         padding: .75rem 1.25rem .45rem !important;
         text-align: left !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .nav-section-btn .section-icon,
       .sidebar .nav-section-btn .section-icon {
         display: inline-block !important;
@@ -1749,12 +1849,14 @@
         font-size: .85rem !important;
         width: 20px !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .nav-sub-item-btn,
       .sidebar .nav-sub-item-btn {
         justify-content: space-between !important;
         padding: .45rem 1rem .45rem 1.15rem !important;
         text-align: left !important;
       }
+
       body:not(.sidebar-pinned-open) .sidebar.show .nav-sub-items.collapse.show,
       body:not(.sidebar-pinned-open) .sidebar.show .nav-sub-sub-items.collapse.show {
         display: block !important;
@@ -1775,21 +1877,32 @@
       animation: fadeInGlobalDate 0.15s ease-out;
       font-family: inherit;
     }
+
     @keyframes fadeInGlobalDate {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     .global-cal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 10px;
     }
+
     .global-cal-month-title {
       font-size: 0.95rem;
       font-weight: 700;
       color: #0f172a;
     }
+
     .global-cal-weekdays {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -1801,11 +1914,13 @@
       text-transform: uppercase;
       margin-bottom: 6px;
     }
+
     .global-cal-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 4px;
     }
+
     .global-cal-day {
       aspect-ratio: 1;
       height: 32px;
@@ -1824,34 +1939,40 @@
       user-select: none;
       transition: all 0.12s ease;
     }
+
     .global-cal-day:hover:not(.cal-empty):not(.cal-past):not(.cal-blocked) {
       background: #eff6ff;
       border-color: #3b82f6;
       color: #1d4ed8;
     }
+
     .global-cal-day.cal-empty {
       border: none;
       background: transparent;
       cursor: default;
     }
+
     .global-cal-day.cal-past {
       color: #cbd5e1;
       background: #f8fafc;
       border-color: #f1f5f9;
       cursor: not-allowed;
     }
+
     .global-cal-day.cal-today {
       font-weight: 800;
       color: #0f2744;
       background: #f1f5f9;
       border-color: #cbd5e1;
     }
+
     .global-cal-day.cal-selected {
       background: #0f2744 !important;
       border-color: #0f2744 !important;
       color: #ffffff !important;
       box-shadow: 0 2px 5px rgba(15, 39, 68, 0.25);
     }
+
     .global-cal-day.cal-blocked {
       border: 2px solid #ef4444 !important;
       background: #fef2f2 !important;
@@ -1859,6 +1980,7 @@
       cursor: not-allowed !important;
       position: relative;
     }
+
     .global-cal-day.cal-blocked::after {
       content: '';
       position: absolute;
@@ -1868,6 +1990,7 @@
       border-radius: 50%;
       background: #dc2626;
     }
+
     /* Hide native browser datepicker and timepicker spin/calendar/clock arrow so custom modern picker opens cleanly */
     input[type="date"]::-webkit-calendar-picker-indicator,
     input[type="time"]::-webkit-calendar-picker-indicator,
@@ -1878,122 +2001,153 @@
       opacity: 0 !important;
       pointer-events: none !important;
     }
-  
-  /* Modern Tab Hover & Active Styling + Mobile Dual-Dropdown */
-  .nav-tabs .nav-link,
-  .nav-pills .nav-link {
-    transition: all 0.2s ease;
-  }
-  .nav-tabs .nav-link:hover:not(.active),
-  .nav-pills .nav-link:hover:not(.active) {
-    background-color: #f1f5f9 !important;
-    color: #052042 !important;
-  }
-  .nav-tabs .nav-link.active,
-  .nav-pills .nav-link.active {
-    background: linear-gradient(135deg, #052042 0%, #0f3a6e 100%) !important;
-    color: #ffffff !important;
-    border-color: #052042 !important;
-    box-shadow: 0 4px 10px rgba(5, 32, 66, 0.22) !important;
-  }
-  .nav-tabs .nav-link.active .badge,
-  .nav-pills .nav-link.active .badge {
-    background-color: rgba(255, 255, 255, 0.22) !important;
-    color: #ffffff !important;
-  }
-  .mobile-tab-dropdown-wrap {
-    display: none;
-  }
-  @media (max-width: 767.98px) {
-    .mobile-tab-dropdown-wrap {
-      display: block !important;
-      width: 100%;
-      margin-bottom: 10px;
+
+    /* Modern Tab Hover & Active Styling + Mobile Dual-Dropdown */
+    .nav-tabs .nav-link,
+    .nav-pills .nav-link {
+      transition: all 0.2s ease;
     }
-    .mobile-tab-dropdown-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 0.88rem;
-      border: 1px solid #cbd5e1;
-      background: linear-gradient(135deg, #052042 0%, #0f3a6e 100%);
-      color: #ffffff;
-      box-shadow: 0 3px 10px rgba(5, 32, 66, 0.16);
+
+    .nav-tabs .nav-link:hover:not(.active),
+    .nav-pills .nav-link:hover:not(.active) {
+      background-color: #f1f5f9 !important;
+      color: #052042 !important;
     }
-    .mobile-tab-dropdown-btn.subtab-btn {
-      background: #eff6ff;
-      color: #052042;
-      border-color: #bfdbfe;
-      box-shadow: none;
-      font-size: 0.82rem;
-      padding: 8px 14px;
+
+    .nav-tabs .nav-link.active,
+    .nav-pills .nav-link.active {
+      background: linear-gradient(135deg, #052042 0%, #0f3a6e 100%) !important;
+      color: #ffffff !important;
+      border-color: #052042 !important;
+      box-shadow: 0 4px 10px rgba(5, 32, 66, 0.22) !important;
     }
-    .mobile-tab-dropdown-menu {
-      width: 100%;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
-      padding: 6px;
-      max-height: 60vh;
-      overflow-y: auto;
-    }
-    .mobile-tab-dropdown-menu .dropdown-item {
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 0.85rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .mobile-tab-dropdown-menu .dropdown-item.active,
-    .mobile-tab-dropdown-menu .dropdown-item:active {
-      background: #052042 !important;
+
+    .nav-tabs .nav-link.active .badge,
+    .nav-pills .nav-link.active .badge {
+      background-color: rgba(255, 255, 255, 0.22) !important;
       color: #ffffff !important;
     }
-    .mobile-tabs-hidden,
-    .mobile-tabs-hidden.d-flex,
-    ul.mobile-tabs-hidden,
-    div.mobile-tabs-hidden {
-      display: none !important;
+
+    .mobile-tab-dropdown-wrap {
+      display: none;
     }
-  }
 
-  /* Ensure icons inside solid-colored action buttons are always crisp white */
-  a[style*="background-color: #0ea5e9"] i,
-  a[style*="background-color: #2563eb"] i,
-  a[style*="background-color: #25D366"] i,
-  a[style*="background-color: #1e3a8a"] i,
-  button[style*="background-color: #f59e0b"] i {
-    color: #ffffff !important;
-  }
+    @media (max-width: 767.98px) {
+      .mobile-tab-dropdown-wrap {
+        display: block !important;
+        width: 100%;
+        margin-bottom: 10px;
+      }
 
-  /* Global Standard Modal Footer Action Buttons (Center-aligned & Equal Size) */
-  .modal-footer {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 12px !important;
-    flex-wrap: wrap !important;
-  }
-  .modal-footer > .btn,
-  .modal-footer > form > .btn,
-  .modal-footer > a.btn {
-    min-width: 125px !important;
-    height: 38px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 6px !important;
-    padding: 0 16px !important;
-    font-weight: 600 !important;
-    margin: 0 !important;
-  }
+      .mobile-tab-dropdown-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.88rem;
+        border: 1px solid #cbd5e1;
+        background: linear-gradient(135deg, #052042 0%, #0f3a6e 100%);
+        color: #ffffff;
+        box-shadow: 0 3px 10px rgba(5, 32, 66, 0.16);
+      }
 
-</style>
+      .mobile-tab-dropdown-btn.subtab-btn {
+        background: #eff6ff;
+        color: #052042;
+        border-color: #bfdbfe;
+        box-shadow: none;
+        font-size: 0.82rem;
+        padding: 8px 14px;
+      }
+
+      .mobile-tab-dropdown-menu {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+        padding: 6px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      .mobile-tab-dropdown-menu .dropdown-item {
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .mobile-tab-dropdown-menu .dropdown-item.active,
+      .mobile-tab-dropdown-menu .dropdown-item:active {
+        background: #052042 !important;
+        color: #ffffff !important;
+      }
+
+      .mobile-tabs-hidden,
+      .mobile-tabs-hidden.d-flex,
+      ul.mobile-tabs-hidden,
+      div.mobile-tabs-hidden {
+        display: none !important;
+      }
+    }
+
+    /* Global Dropdown 10-Row Max Height with Scrollbar (Auto-shrinks when < 10 items) */
+    .dropdown-menu,
+    .ts-dropdown .ts-dropdown-content {
+      max-height: 260px !important;
+      overflow-y: auto !important;
+    }
+
+    .ts-wrapper.form-select {
+      padding: 0 !important;
+      border: none !important;
+      margin-top: 0 !important;
+      background: transparent !important;
+    }
+
+    .ts-wrapper.form-select .ts-control {
+      min-height: 38px !important;
+      padding: 6px 12px !important;
+      border-radius: 8px !important;
+    }
+
+    /* Ensure icons inside solid-colored action buttons are always crisp white */
+    a[style*="background-color: #0ea5e9"] i,
+    a[style*="background-color: #2563eb"] i,
+    a[style*="background-color: #25D366"] i,
+    a[style*="background-color: #1e3a8a"] i,
+    button[style*="background-color: #f59e0b"] i {
+      color: #ffffff !important;
+    }
+
+    /* Global Standard Modal Footer Action Buttons (Center-aligned & Equal Size) */
+    .modal-footer {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      gap: 12px !important;
+      flex-wrap: wrap !important;
+    }
+
+    .modal-footer>.btn,
+    .modal-footer>form>.btn,
+    .modal-footer>a.btn {
+      min-width: 125px !important;
+      height: 38px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      padding: 0 16px !important;
+      font-weight: 600 !important;
+      margin: 0 !important;
+    }
+  </style>
   <link rel="stylesheet" href="{% static 'css/crm_datetime_picker.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
@@ -2018,21 +2172,29 @@
   {% include "includes/mobile_bottom_nav.html" %}
 
   <!-- Universal Clean Logout Confirmation Modal (All Panels & All Industries) -->
-  <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmModalLabel"
+    aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
-      <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; border: 1px solid #e2e8f0 !important; overflow: hidden; box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18) !important;">
+      <div class="modal-content border-0 shadow-lg"
+        style="border-radius: 20px; border: 1px solid #e2e8f0 !important; overflow: hidden; box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18) !important;">
         <div class="modal-body p-4 text-center">
-          <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 58px; height: 58px; background: #fee2e2; border: 1px solid #fecaca; color: #dc2626;">
+          <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-circle"
+            style="width: 58px; height: 58px; background: #fee2e2; border: 1px solid #fecaca; color: #dc2626;">
             <i class="fa-solid fa-arrow-right-from-bracket" style="font-size: 1.5rem;"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-1" id="logoutConfirmModalLabel" style="font-size: 1.2rem; letter-spacing: -0.01em;">Confirm Logout</h5>
-          
+          <h5 class="fw-bold text-dark mb-1" id="logoutConfirmModalLabel"
+            style="font-size: 1.2rem; letter-spacing: -0.01em;">Confirm Logout</h5>
+
           {% if request.user.is_authenticated %}
-          <div class="d-inline-flex align-items-center gap-2 px-3 py-1 my-2 rounded-pill bg-light border" style="font-size: 0.84rem; color: #334155; font-weight: 600;">
+          <div class="d-inline-flex align-items-center gap-2 px-3 py-1 my-2 rounded-pill bg-light border"
+            style="font-size: 0.84rem; color: #334155; font-weight: 600;">
             <i class="fa-solid fa-user-circle text-primary" style="font-size: 0.95rem;"></i>
-            <span>{% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username }}{% endif %}</span>
+            <span>{% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username
+              }}{% endif %}</span>
             {% if request.user.role %}
-            <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5" style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">{{ request.user.get_role_display|default:request.user.role }}</span>
+            <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5"
+              style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">{{
+              request.user.get_role_display|default:request.user.role }}</span>
             {% endif %}
           </div>
           {% endif %}
@@ -2041,13 +2203,17 @@
             Are you sure you want to end your current session and logout?
           </p>
         </div>
-        <div class="modal-footer border-0 p-3 px-4 d-flex justify-content-center align-items-center gap-3" style="background: #f8fafc; border-top: 1px solid #f1f5f9 !important;">
-          <button type="button" class="btn btn-light fw-semibold text-secondary" data-bs-dismiss="modal" style="height: 40px; min-width: 120px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff; color: #475569; font-size: 0.9rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+        <div class="modal-footer border-0 p-3 px-4 d-flex justify-content-center align-items-center gap-3"
+          style="background: #f8fafc; border-top: 1px solid #f1f5f9 !important;">
+          <button type="button" class="btn btn-light fw-semibold text-secondary" data-bs-dismiss="modal"
+            style="height: 40px; min-width: 120px; border-radius: 10px; border: 1px solid #cbd5e1 !important; background: #ffffff; color: #475569; font-size: 0.9rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
             Cancel
           </button>
           <form method="post" action="{% url 'accounts:logout' %}" class="m-0 p-0 d-inline">
             {% csrf_token %}
-            <button type="submit" class="btn btn-danger fw-semibold d-inline-flex align-items-center justify-content-center gap-2" style="height: 40px; min-width: 125px; border-radius: 10px; font-size: 0.9rem; background-color: #dc2626 !important; border: 1px solid #b91c1c !important; color: #ffffff; box-shadow: 0 1px 2px rgba(220,38,38,0.2);">
+            <button type="submit"
+              class="btn btn-danger fw-semibold d-inline-flex align-items-center justify-content-center gap-2"
+              style="height: 40px; min-width: 125px; border-radius: 10px; font-size: 0.9rem; background-color: #dc2626 !important; border: 1px solid #b91c1c !important; color: #ffffff; box-shadow: 0 1px 2px rgba(220,38,38,0.2);">
               <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
             </button>
           </form>
@@ -2062,7 +2228,7 @@
     // Universal Lead Table Row & Detail Click Handler
     document.addEventListener('DOMContentLoaded', function () {
       // 1. HARD RULE: Ensure ALL sidebar links strictly open in the SAME tab (_self)
-      document.querySelectorAll('.sidebar a, #sidebar a').forEach(function(sideLink) {
+      document.querySelectorAll('.sidebar a, #sidebar a').forEach(function (sideLink) {
         sideLink.removeAttribute('target');
         sideLink.setAttribute('target', '_self');
       });
@@ -2119,7 +2285,7 @@
 
       // 3. Optional soft-refresh on lead update (only when user actively switches back to the tab, never in the background)
       let pendingLeadRefresh = false;
-      window.addEventListener('storage', function(e) {
+      window.addEventListener('storage', function (e) {
         if (e.key === 'crm_lead_updated') {
           const path = window.location.pathname;
           if (path.includes('/dashboard/') || path.includes('/leads/') || path.includes('/followups/')) {
@@ -2130,7 +2296,7 @@
         }
       });
 
-      document.addEventListener('visibilitychange', function() {
+      document.addEventListener('visibilitychange', function () {
         if (!document.hidden && pendingLeadRefresh) {
           pendingLeadRefresh = false;
           if (!document.querySelector('.modal.show') && !document.activeElement.matches('input, textarea, select')) {
@@ -2143,7 +2309,7 @@
     });
 
     // Mobile Sidebar Open/Close with Backdrop Support (Global Function)
-    window.toggleMobileSidebar = function(force) {
+    window.toggleMobileSidebar = function (force) {
       const sb = document.getElementById('sidebar');
       const bd = document.getElementById('sidebarBackdrop');
       if (!sb) return;
@@ -2159,11 +2325,11 @@
       }
     };
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       // Close mobile sidebar on navigation link click
       if (window.innerWidth < 992) {
-        document.querySelectorAll('#sidebar .nav-link:not([data-bs-toggle])').forEach(function(link) {
-          link.addEventListener('click', function() {
+        document.querySelectorAll('#sidebar .nav-link:not([data-bs-toggle])').forEach(function (link) {
+          link.addEventListener('click', function () {
             window.toggleMobileSidebar(false);
           });
         });
@@ -2177,7 +2343,7 @@
     // 2. Active Bootstrap tab or pill
     // 3. Tab URL sync via history.replaceState
     // =========================================================================
-    (function() {
+    (function () {
       const pagePath = window.location.pathname;
       const storageKey = 'crm_page_state_' + pagePath;
 
@@ -2194,7 +2360,7 @@
         };
 
         const activeTabs = [];
-        document.querySelectorAll('[data-bs-toggle="tab"].active, [data-bs-toggle="pill"].active').forEach(function(el) {
+        document.querySelectorAll('[data-bs-toggle="tab"].active, [data-bs-toggle="pill"].active').forEach(function (el) {
           if (el.id) {
             activeTabs.push(el.id);
           } else if (el.getAttribute('data-bs-target')) {
@@ -2212,14 +2378,14 @@
 
         try {
           sessionStorage.setItem(storageKey, JSON.stringify(stateObj));
-        } catch(e) {}
+        } catch (e) { }
       }
 
       window.addEventListener('beforeunload', savePageState);
       window.addEventListener('pagehide', savePageState);
 
       // Listen to tab clicks to update URL & state seamlessly
-      document.addEventListener('shown.bs.tab', function(event) {
+      document.addEventListener('shown.bs.tab', function (event) {
         const targetTab = event.target;
         if (!targetTab) return;
 
@@ -2233,7 +2399,7 @@
               currentUrl.searchParams.set('tab', targetTab.getAttribute('data-tab-param'));
               window.history.replaceState({}, '', currentUrl);
             }
-          } catch(e) {}
+          } catch (e) { }
         }
         savePageState();
       });
@@ -2243,7 +2409,7 @@
         let rawState = null;
         try {
           rawState = sessionStorage.getItem(storageKey);
-        } catch(e) {}
+        } catch (e) { }
 
         if (!rawState) return;
 
@@ -2252,7 +2418,7 @@
 
           // Restore Active Tabs
           if (state.activeTabs && state.activeTabs.length > 0) {
-            state.activeTabs.forEach(function(tabIdentifier) {
+            state.activeTabs.forEach(function (tabIdentifier) {
               let tabBtn = document.getElementById(tabIdentifier);
               if (!tabBtn && tabIdentifier.startsWith('#')) {
                 tabBtn = document.querySelector(`[data-bs-target="${tabIdentifier}"]`);
@@ -2273,7 +2439,7 @@
               behavior: 'instant'
             });
             // Second attempt after DOM & images settle
-            setTimeout(function() {
+            setTimeout(function () {
               window.scrollTo({
                 left: state.scroll.x,
                 top: state.scroll.y,
@@ -2281,13 +2447,13 @@
               });
             }, 120);
           }
-        } catch(e) {}
+        } catch (e) { }
       }
 
-      window.addEventListener('pageshow', function(e) {
+      window.addEventListener('pageshow', function (e) {
         restorePageState();
       });
-      document.addEventListener('DOMContentLoaded', function() {
+      document.addEventListener('DOMContentLoaded', function () {
         setTimeout(restorePageState, 60);
       });
     })();
@@ -2300,12 +2466,12 @@
 
   {% if request.session.auto_open_whatsapp %}
   <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function () {
       const waUrl = "{{ request.session.auto_open_whatsapp|escapejs }}";
       if (waUrl) {
         window.open(waUrl, "_blank");
         // Clear via quick async fetch or session cleanup
-        fetch("{% url 'leads:doctor_slots_api' %}?clear_wa_session=1").catch(() => {});
+        fetch("{% url 'leads:doctor_slots_api' %}?clear_wa_session=1").catch(() => { });
       }
     });
   </script>
@@ -2313,65 +2479,78 @@
 
   {% include "includes/footer.html" %}
   {% block extra_js %}{% endblock %}
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-  if (!window.location.pathname.includes("/dashboard/")) return;
-  const candidates = Array.from(document.querySelectorAll("ul.nav-tabs, ul.nav-pills, .nav-tabs, .nav-pills, .academy-tabs-nav, .academy-subtabs-nav, ul.nav, .counselor-tabs, .telecaller-tabs, div.d-flex, ul.d-flex"));
-  const tabLists = candidates.filter(el => {
-    if (el.closest(".mobile-tab-dropdown-wrap") || el.closest("table") || el.closest(".modal")) return false;
-    const links = Array.from(el.children).map(c => c.matches("a, button") ? c : c.querySelector("a, button")).filter(Boolean);
-    if (links.length < 3) return false;
-    return links.some(l => l.classList.contains("nav-link") || (l.getAttribute("href") || "").includes("tab="));
-  });
-
-  tabLists.forEach((ul, idx) => {
-    if (ul.dataset.mobileDropdownInit) return;
-    ul.dataset.mobileDropdownInit = "1";
-    const links = Array.from(ul.children).map(c => c.matches("a, button") ? c : c.querySelector("a, button")).filter(Boolean);
-    const activeLink = links.find(l => l.classList.contains("active")) || links[0];
-    if (!activeLink) return;
-
-    const isMainTab = ul.id === "academyMainTabs" || ul.classList.contains("academy-tabs-nav") || idx === 0;
-    const isSubtab = !isMainTab && (ul.classList.contains("academy-subtabs-nav") || ul.classList.contains("nav-pills") || idx > 0);
-    const wrap = document.createElement("div");
-    wrap.className = "mobile-tab-dropdown-wrap dropdown";
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "mobile-tab-dropdown-btn dropdown-toggle" + (isSubtab ? " subtab-btn" : "");
-    btn.setAttribute("data-bs-toggle", "dropdown");
-    btn.setAttribute("aria-expanded", "false");
-    btn.innerHTML = `<span class="text-truncate">${activeLink.innerText.replace(/\s+/g, " ").trim()}</span>`;
-
-    const menu = document.createElement("ul");
-    menu.className = "dropdown-menu mobile-tab-dropdown-menu";
-
-    links.forEach(link => {
-      const li = document.createElement("li");
-      const item = document.createElement("a");
-      item.className = "dropdown-item" + (link.classList.contains("active") ? " active" : "");
-      item.href = link.getAttribute("href") || "#";
-      item.innerHTML = link.innerHTML;
-      item.addEventListener("click", function(e) {
-        if (!link.getAttribute("href") || link.getAttribute("href") === "#") {
-          e.preventDefault();
-          link.click();
-          btn.innerHTML = `<span class="text-truncate">${link.innerText.replace(/\s+/g, " ").trim()}</span>`;
-          menu.querySelectorAll(".dropdown-item").forEach(d => d.classList.remove("active"));
-          item.classList.add("active");
-        }
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      if (typeof TomSelect !== "undefined") {
+        document.querySelectorAll("select.form-select:not(.no-tom-select):not(.ts-hidden-accessible)").forEach(function (sel) {
+          if (sel.tomselect) return;
+          try {
+            new TomSelect(sel, {
+              maxOptions: null,
+              allowEmptyOption: true,
+              create: false,
+              dropdownParent: "body"
+            });
+          } catch (e) { }
+        });
+      }
+      if (!window.location.pathname.includes("/dashboard/")) return;
+      const candidates = Array.from(document.querySelectorAll("ul.nav-tabs, ul.nav-pills, .nav-tabs, .nav-pills, .academy-tabs-nav, .academy-subtabs-nav, ul.nav, .counselor-tabs, .telecaller-tabs, div.d-flex, ul.d-flex"));
+      const tabLists = candidates.filter(el => {
+        if (el.closest(".mobile-tab-dropdown-wrap") || el.closest("table") || el.closest(".modal")) return false;
+        const links = Array.from(el.children).map(c => c.matches("a, button") ? c : c.querySelector("a, button")).filter(Boolean);
+        if (links.length < 3) return false;
+        return links.some(l => l.classList.contains("nav-link") || (l.getAttribute("href") || "").includes("tab="));
       });
-      li.appendChild(item);
-      menu.appendChild(li);
-    });
 
-    wrap.appendChild(btn);
-    wrap.appendChild(menu);
-    ul.classList.add("mobile-tabs-hidden");
-    ul.parentNode.insertBefore(wrap, ul);
-  });
-});
-</script>
+      tabLists.forEach((ul, idx) => {
+        if (ul.dataset.mobileDropdownInit) return;
+        ul.dataset.mobileDropdownInit = "1";
+        const links = Array.from(ul.children).map(c => c.matches("a, button") ? c : c.querySelector("a, button")).filter(Boolean);
+        const activeLink = links.find(l => l.classList.contains("active")) || links[0];
+        if (!activeLink) return;
+
+        const isMainTab = ul.id === "academyMainTabs" || ul.classList.contains("academy-tabs-nav") || idx === 0;
+        const isSubtab = !isMainTab && (ul.classList.contains("academy-subtabs-nav") || ul.classList.contains("nav-pills") || idx > 0);
+        const wrap = document.createElement("div");
+        wrap.className = "mobile-tab-dropdown-wrap dropdown";
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "mobile-tab-dropdown-btn dropdown-toggle" + (isSubtab ? " subtab-btn" : "");
+        btn.setAttribute("data-bs-toggle", "dropdown");
+        btn.setAttribute("aria-expanded", "false");
+        btn.innerHTML = `<span class="text-truncate">${activeLink.innerText.replace(/\s+/g, " ").trim()}</span>`;
+
+        const menu = document.createElement("ul");
+        menu.className = "dropdown-menu mobile-tab-dropdown-menu";
+
+        links.forEach(link => {
+          const li = document.createElement("li");
+          const item = document.createElement("a");
+          item.className = "dropdown-item" + (link.classList.contains("active") ? " active" : "");
+          item.href = link.getAttribute("href") || "#";
+          item.innerHTML = link.innerHTML;
+          item.addEventListener("click", function (e) {
+            if (!link.getAttribute("href") || link.getAttribute("href") === "#") {
+              e.preventDefault();
+              link.click();
+              btn.innerHTML = `<span class="text-truncate">${link.innerText.replace(/\s+/g, " ").trim()}</span>`;
+              menu.querySelectorAll(".dropdown-item").forEach(d => d.classList.remove("active"));
+              item.classList.add("active");
+            }
+          });
+          li.appendChild(item);
+          menu.appendChild(li);
+        });
+
+        wrap.appendChild(btn);
+        wrap.appendChild(menu);
+        ul.classList.add("mobile-tabs-hidden");
+        ul.parentNode.insertBefore(wrap, ul);
+      });
+    });
+  </script>
 </body>
 
 </html>

@@ -68,13 +68,17 @@
       var isDeactivate = /deactivate|disable|turn off/i.test(msg);
       var isActivate = /activate|enable|restore|unarchive/i.test(msg);
 
+      var isArchive = /archive/i.test(msg);
+      var isRestore = /restore/i.test(msg);
       var defaultTitle = 'Confirmation Required';
-      if (isDanger) defaultTitle = 'Confirm Delete';
+      if (isArchive) defaultTitle = 'Confirm Archive';
+      else if (isRestore) defaultTitle = 'Confirm Restore';
+      else if (isDanger) defaultTitle = 'Confirm Delete';
       else if (isDeactivate) defaultTitle = 'Confirm Deactivation';
       else if (isActivate) defaultTitle = 'Confirm Activation';
 
       var title = options.title || defaultTitle;
-      var confirmText = options.confirmText || (isDanger ? 'Delete' : (isDeactivate ? 'Deactivate' : (isActivate ? 'Activate' : 'Confirm')));
+      var confirmText = options.confirmText || (isArchive ? 'Archive' : (isRestore ? 'Restore' : (isDanger ? 'Delete' : (isDeactivate ? 'Deactivate' : (isActivate ? 'Activate' : 'Confirm')))));
       var cancelText = options.cancelText || 'Cancel';
 
       document.getElementById('appConfirmModalTitle').innerText = title;

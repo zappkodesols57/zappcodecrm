@@ -377,7 +377,7 @@
       {% if user.can_assign_leads %}
       <div class="modal fade" id="transferLeadModal" tabindex="-1" aria-labelledby="transferLeadModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-          <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+          <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: visible;">
             <div class="modal-header py-2.5 px-3" style="background-color: #052042 !important;">
               <h6 class="modal-title fw-bold mb-0 text-white" id="transferLeadModalLabel" style="font-size: 0.92rem;">
                 <i class="fa-solid fa-right-left me-2 text-info"></i>Transfer Lead
@@ -398,12 +398,37 @@
                   </div>
                 </div>
                 <label class="form-label small fw-bold text-dark mb-1">Select Telecaller</label>
-                <select name="assigned_to" class="form-select form-select-sm bg-white no-tom-select" style="border-color: #cbd5e1; height: 38px; border-radius: 8px;">
+                <select name="assigned_to" id="transferAssignedToSelect" class="form-select form-select-sm bg-white no-tom-select d-none" style="border-color: #cbd5e1; height: 38px; border-radius: 8px;">
                   <option value="">-- Unassigned (Telecaller) --</option>
                   {% for emp in employees %}
                     <option value="{{ emp.id }}" {% if lead.assigned_to_id == emp.id %}selected{% endif %}>{{ emp.get_full_name|default:emp.username }} ({{ emp.get_role_display }})</option>
                   {% endfor %}
                 </select>
+                <div class="position-relative w-100" id="transferCustomDdWrap">
+                  <button type="button" id="transferCustomDdBtn" class="form-select form-select-sm text-start text-truncate bg-white" style="border-color: #cbd5e1; height: 38px; border-radius: 8px; font-size: 0.85rem;">-- Unassigned (Telecaller) --</button>
+                  <div id="transferCustomDdMenu" class="bg-white border rounded-3 shadow position-absolute start-0 end-0 mt-1 d-none" style="top: 100%; max-height: 220px; overflow-y: auto; z-index: 1070;"></div>
+                </div>
+                <script>
+                  (function(){
+                    const sel = document.getElementById('transferAssignedToSelect');
+                    const btn = document.getElementById('transferCustomDdBtn');
+                    const menu = document.getElementById('transferCustomDdMenu');
+                    if (!sel || !btn || !menu) return;
+                    if (sel.options[sel.selectedIndex]) btn.textContent = sel.options[sel.selectedIndex].text;
+                    Array.from(sel.options).forEach(opt => {
+                      const it = document.createElement('div');
+                      it.className = 'px-3 py-1.5 small';
+                      it.style.cursor = 'pointer';
+                      it.textContent = opt.text;
+                      it.onmouseenter = () => it.style.background = '#eff6ff';
+                      it.onmouseleave = () => it.style.background = sel.value === opt.value ? '#e0f2fe' : '';
+                      it.onclick = () => { sel.value = opt.value; btn.textContent = opt.text; menu.classList.add('d-none'); };
+                      menu.appendChild(it);
+                    });
+                    btn.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('d-none'); };
+                    document.addEventListener('click', () => menu.classList.add('d-none'));
+                  })();
+                </script>
               </div>
               <div class="modal-footer bg-light border-top py-2.5">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
