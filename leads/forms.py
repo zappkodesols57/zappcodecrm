@@ -198,6 +198,12 @@ class LeadForm(forms.ModelForm):
                     qs = LeadStage.objects.filter(is_active=True)
             if self.instance and self.instance.pk and self.instance.stage:
                 qs = qs | LeadStage.objects.filter(pk=self.instance.stage.pk)
+            else:
+                # New lead created via Add Lead form is already assigned to a user: hide Fresh/New and default to Assigned
+                qs = qs.exclude(name__iexact="Fresh").exclude(name__iexact="New")
+                assigned_stage = qs.filter(name__iexact="Assigned").first()
+                if assigned_stage:
+                    self.fields["stage"].initial = assigned_stage.pk
             self.fields["stage"].queryset = qs.distinct().order_by("order", "name")
 
         for name, field in self.fields.items():
