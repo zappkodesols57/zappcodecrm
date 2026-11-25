@@ -574,7 +574,6 @@
                       style="width: 28px; height: 28px;" title="Edit Lead">
                       <i class="fa-regular fa-pen-to-square" style="font-size: 0.72rem;"></i>
                     </a>
-                    {% if not lead.assigned_to %}
                     <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}?text=Hello%20{{ lead.name|urlencode }},%20greeting%20from%20Zappcode%20Academy."
                         target="_blank"
                         class="btn btn-sm border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
@@ -586,7 +585,6 @@
                         style="width: 28px; height: 28px;" title="Call {{ lead.name }}">
                         <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
                       </a>
-                    {% endif %}
                 </div>
                 </td>
               </tr>
