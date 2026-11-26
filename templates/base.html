@@ -2189,12 +2189,10 @@
           <div class="d-inline-flex align-items-center gap-2 px-3 py-1 my-2 rounded-pill bg-light border"
             style="font-size: 0.84rem; color: #334155; font-weight: 600;">
             <i class="fa-solid fa-user-circle text-primary" style="font-size: 0.95rem;"></i>
-            <span>{% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username
-              }}{% endif %}</span>
+            <span>{% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username }}{% endif %}</span>
             {% if request.user.role %}
             <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5"
-              style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">{{
-              request.user.get_role_display|default:request.user.role }}</span>
+              style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">{{ request.user.get_role_display|default:request.user.role }}</span>
             {% endif %}
           </div>
           {% endif %}
