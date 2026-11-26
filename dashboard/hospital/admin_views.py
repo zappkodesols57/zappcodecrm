@@ -647,17 +647,18 @@ def hospital_admin_home(request):
     call_not_done_count = len(cnd_lead_ids)
 
     # 3. Appointments Booked: Total distinct leads with appointments booked (Active vs Completed)
-    # Active: Scheduled / Confirmed appointments awaiting visit
+    # Active: Scheduled / Confirmed appointments awaiting visit (one lead counted once)
     appt_active_qs = hospital_all_leads.filter(
         Q(stage__name__in=['Appointment Booking', 'Appointment Rescheduled', 'Appointment - Confirmed', 'Booking Confirmed', 'Appointment Confirmed']) |
         Q(custom_data__appointment_status__iexact='YES') |
-        Q(custom_data__appointment_status__icontains='booked') |
+        Q(custom_data__appointment_status__iexact='Booked') |
         Q(custom_data__appointment_status__icontains='confirmed') |
         Q(custom_data__appointment_status__icontains='rescheduled') |
         Q(custom_data__appointment_confirmed_at__isnull=False)
     ).exclude(
         Q(stage__name__in=['Payment Done', 'Cancelled', 'Lost']) |
         Q(deal_status__in=[DealStatus.WON, DealStatus.LOST]) |
+        Q(custom_data__appointment_status__iexact='Not Booked') |
         Q(custom_data__appointment_status__icontains='done') |
         Q(custom_data__appointment_status__icontains='completed')
     ).distinct()
@@ -671,10 +672,14 @@ def hospital_admin_home(request):
     ).filter(
         Q(custom_data__appointment_date__isnull=False) |
         Q(custom_data__appo_booked_date__isnull=False) |
-        Q(custom_data__appointment_status__icontains='booked') |
+        Q(custom_data__appointment_status__iexact='Booked') |
         Q(custom_data__appointment_status__icontains='confirm') |
         Q(custom_data__appointment_status__icontains='reschedule') |
+        Q(custom_data__appointment_status__icontains='completed') |
+        Q(custom_data__appointment_status__icontains='done') |
         Q(stage__name__in=['Payment Done', 'Appointment Booking', 'Appointment Rescheduled'])
+    ).exclude(
+        Q(custom_data__appointment_status__iexact='Not Booked')
     ).distinct()
 
     appointment_active_count = appt_active_qs.count()
@@ -731,6 +736,15 @@ def hospital_admin_home(request):
         Q(custom_data__ipd_no__isnull=False)
     ).distinct()
     admitted_patients_count = admitted_qs.count()
+    admitted_completed_qs = admitted_qs.filter(
+        Q(deal_status=DealStatus.WON) |
+        Q(stage__name__in=['Payment Done']) |
+        Q(admission_status='ADMISSION_DONE') |
+        Q(custom_data__appointment_status__icontains='done') |
+        Q(custom_data__appointment_status__icontains='completed')
+    ).distinct()
+    admitted_completed_count = admitted_completed_qs.count()
+    admitted_active_count = admitted_patients_count - admitted_completed_count
 
     # 7. Won Leads & Complete Revenue Breakdown (OPD, IPD, Pharmacy, Investigation)
     won_leads_count = 0
@@ -796,6 +810,9 @@ def hospital_admin_home(request):
         Q(custom_data__appointment_status__icontains='follow')
     ).distinct()
     followups_pending_count = fu_pending_qs.count()
+    followups_done_count = hospital_all_leads.filter(
+        Q(followups__followup_status='COMPLETED')
+    ).distinct().count()
 
     # 10. Lost Leads: Strictly leads with LOST deal status or Cancelled stage
     lost_leads_qs = hospital_all_leads.filter(
@@ -849,10 +866,9 @@ def hospital_admin_home(request):
             loc = loc_str.title()
         location_dist[loc] = location_dist.get(loc, 0) + 1
 
-        # 3. Month
+        # 3. Month (with Year for proper chronological ordering)
         lead_date = l.get('inquiry_date') or (l.get('created_at').date() if l.get('created_at') else today)
-        m_name = cd.get('month') or lead_date.strftime('%B')
-        m_name = m_name.strip().title()
+        m_name = lead_date.strftime('%b %Y')
         month_dist[m_name] = month_dist.get(m_name, 0) + 1
 
         # 4. Department
@@ -943,9 +959,12 @@ def hospital_admin_home(request):
         b_name = l.get('hospital__name') or 'Direct / General'
         business_dist[b_name] = business_dist.get(b_name, 0) + 1
 
-        # 13. Status distribution (DealStatus / Stage)
-        st_name = str(l.get('deal_status') or l.get('stage__name') or 'OPEN').strip().upper()
+        # 13. Status distribution (Stage first, fallback to DealStatus)
+        st_name = str(l.get('stage__name') or l.get('deal_status') or 'OPEN').strip().upper()
         status_dist[st_name] = status_dist.get(st_name, 0) + 1
+
+    # Sort month_dist chronologically (e.g. 'Jan 2026', 'Feb 2026', ...)
+    month_dist = dict(sorted(month_dist.items(), key=lambda x: datetime.strptime(x[0], '%b %Y')))
 
     # Currency formatter for Indian system (Crores, Lakhs, Thousands)
     def format_indian_currency(amt):
@@ -998,9 +1017,12 @@ def hospital_admin_home(request):
         "walkin_leads": walkin_leads_count,
         "appointments_scheduled": appo_sched_count,
         "admitted_patients": admitted_patients_count,
+        "admitted_active_count": admitted_active_count,
+        "admitted_completed_count": admitted_completed_count,
         "won_opd_count": won_opd_count,
         "won_ipd_count": won_ipd_count,
         "followups_pending": followups_pending_count,
+        "followups_done": followups_done_count,
         "total_revenue": total_revenue,
         "formatted_revenue": formatted_revenue,
         "opd_revenue": opd_revenue,
