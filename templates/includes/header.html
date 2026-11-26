@@ -87,10 +87,12 @@
     </a>
     {% endif %}
 
+    {% if user.role != 'DOCTOR' %}
     {% if user.can_import_export or user.role == 'LEAD_ATTENDENT' or user.role == 'MANAGER' or user.role == 'ADMIN' %}
     <a href="{% url 'imports:upload' %}" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center fw-semibold rounded-pill px-3 shadow-xs" title="Import Leads from XML / Excel / CSV / Google Sheets" style="height: 34px; border-color: #cbd5e1 !important; color: #0f2744 !important; background: #ffffff !important; font-size: 0.8rem; flex-shrink: 0;">
       Import Leads
     </a>
+    {% endif %}
     {% endif %}
     {% endif %}
 
@@ -227,7 +229,7 @@
 </div>
 
 <!-- Live Toast Container for Real-time New Leads & Followups -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;" id="liveLeadToastContainer"></div>
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090; margin-top: 64px;" id="liveLeadToastContainer"></div>
 
 <script>
   document.addEventListener("DOMContentLoaded", function() {

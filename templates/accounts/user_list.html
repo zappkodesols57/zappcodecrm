@@ -222,10 +222,8 @@
           <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
           <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
         </select>
-        <button type="submit" class="btn btn-primary team-filter-control fw-semibold flex-grow-1" style="background-color: #0f172a; border-color: #0f172a !important;">Filter</button>
-        {% if q or role_filter or status_filter or business_filter %}
-        <a href="{% url 'accounts:user_list' %}" class="btn btn-light team-filter-control d-flex align-items-center justify-content-center px-3 text-secondary" title="Reset Filters">Clear</a>
-        {% endif %}
+        <button type="submit" class="btn btn-primary team-filter-control fw-semibold flex-grow-1" style="background-color: #0f172a; border-color: #0f172a !important;">Apply</button>
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-light team-filter-control d-flex align-items-center justify-content-center px-3 text-secondary border" title="Reset Filters">Clear</a>
       </div>
     </form>
   </div>
@@ -269,7 +267,8 @@
             <input type="checkbox" class="form-check-input" id="selectAllUsersHeader" title="Select All on this page">
           </th>
           {% endif %}
-          <th class="{% if not request.user.is_superuser and request.user.role != 'SUPER_ADMIN' %}ps-3{% endif %} py-2.5 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; width: 220px;">Employee / Contact</th>
+          <th class="{% if not request.user.is_superuser and request.user.role != 'SUPER_ADMIN' %}ps-3{% endif %} py-2.5 fw-bold text-dark small text-uppercase text-center" style="letter-spacing: 0.3px; width: 55px;">#</th>
+          <th class="py-2.5 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; width: 220px;">Employee / Contact</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 140px;">Username</th>
           <th class="py-2.5 px-3 fw-bold text-dark small text-uppercase" style="letter-spacing: 0.3px; border-left: 1px solid #e2e8f0 !important; width: 160px;">Role</th>
           {% if biz_industry != 'ACADEMY' %}
@@ -291,6 +290,7 @@
             {% endif %}
           </td>
           {% endif %}
+          <td class="{% if not request.user.is_superuser and request.user.role != 'SUPER_ADMIN' %}ps-3{% endif %} py-2.5 text-center text-muted fw-semibold small">{{ page_obj.start_index|add:forloop.counter0|default:forloop.counter }}</td>
           <!-- 1. Employee / Contact -->
           <td class="{% if not request.user.is_superuser and request.user.role != 'SUPER_ADMIN' %}ps-3{% endif %} py-2.5">
             <strong class="text-dark d-block" style="font-size: 0.86rem;">{{ u.get_full_name|default:u.username }}</strong>
@@ -403,11 +403,10 @@
 
           <!-- 7. Status -->
           <td class="px-3 py-2.5 text-center">
-            {% if u.is_active %}
-            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-2.5 py-1 fw-medium" style="font-size: 0.72rem; border-radius: 4px;">Active</span>
-            {% else %}
-            <span class="badge bg-light text-muted border px-2.5 py-1 fw-medium" style="font-size: 0.72rem; border-radius: 4px;">Inactive</span>
-            {% endif %}
+            <div class="form-check form-switch d-inline-flex align-items-center justify-content-center gap-2 m-0">
+              <input class="form-check-input" type="checkbox" role="switch" {% if u.is_active %}checked{% endif %} {% if user.pk == u.pk %}disabled{% endif %} onchange="toggleUserStatus({{ u.pk }}, this)" style="cursor: pointer;">
+              <span class="small fw-semibold {% if u.is_active %}text-success{% else %}text-muted{% endif %}" id="statusLabel{{ u.pk }}">{% if u.is_active %}Active{% else %}Inactive{% endif %}</span>
+            </div>
           </td>
 
           <!-- 8. Actions -->
@@ -629,7 +628,7 @@
   }
 
   let confirmModalInstance = null;
-  function showConfirmDialog(options) {
+  function showUserConfirmDialog(options) {
     const modalElem = document.getElementById('crmConfirmModal');
     if (!modalElem || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
       if (confirm(options.prompt || 'Are you sure?')) { options.onConfirm(); }
@@ -663,9 +662,34 @@
     confirmModalInstance.show();
   }
 
+  function toggleUserStatus(userId, checkbox) {
+    fetch(`/accounts/users/${userId}/toggle-active/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        const lbl = document.getElementById(`statusLabel${userId}`);
+        if (lbl) {
+          lbl.textContent = data.is_active ? 'Active' : 'Inactive';
+          lbl.className = 'small fw-semibold ' + (data.is_active ? 'text-success' : 'text-muted');
+        }
+        showToastNotification(`User marked ${data.is_active ? 'Active' : 'Inactive'}.`, 'success');
+      } else {
+        checkbox.checked = !checkbox.checked;
+        showToastNotification(data.message || 'Could not update status.', 'error');
+      }
+    })
+    .catch(() => {
+      checkbox.checked = !checkbox.checked;
+      showToastNotification('Could not update status.', 'error');
+    });
+  }
+
   // Single User Delete with Modal
   function deleteSingleUser(userId, username) {
-    showConfirmDialog({
+    showUserConfirmDialog({
       title: 'Delete User Profile',
       prompt: `Are you sure you want to PERMANENTLY DELETE employee '${username}'?`,
       details: '<ul class="mb-0 ps-3"><li>Their user profile and login access will be removed.</li><li>Their assigned leads will become unassigned.</li><li>All historical activities, notes, and timeline footprints will remain safely preserved.</li></ul>',
@@ -695,8 +719,8 @@
           }
         })
         .catch(err => {
-          showToastNotification(`User '${username}' deleted successfully.`, 'success');
-          setTimeout(() => { window.location.reload(); }, 600);
+          showToastNotification('Could not delete user: ' + (err.message || 'Server error'), 'error');
+          if (row) row.style.opacity = '1';
         });
       }
     });
@@ -786,7 +810,7 @@
       });
     };
 
-    showConfirmDialog(dialogConfig);
+    showUserConfirmDialog(dialogConfig);
   }
 
   function initTooltips() {

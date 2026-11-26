@@ -32,6 +32,7 @@ urlpatterns = [
     path("businesses/add/", views.business_add, name="business_add"),
     path("businesses/<int:pk>/edit/", views.business_edit, name="business_edit"),
     path("businesses/<int:pk>/toggle-active/", views.business_toggle_active, name="business_toggle_active"),
+    path("users/<int:pk>/toggle-active/", views.user_toggle_active, name="user_toggle_active"),
     path("businesses/<int:pk>/delete/", views.business_delete, name="business_delete"),
     path("switch-business/", views.switch_business, name="switch_business"),
     path("system/default-profile/", default_profile_view.default_system_profile, name="default_system_profile"),

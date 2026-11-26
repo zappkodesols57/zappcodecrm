@@ -305,23 +305,14 @@
             <!-- 10. Actions: View, Restore, WhatsApp, Call -->
             <td class="px-3 text-end" onclick="event.stopPropagation();">
               <div class="d-inline-flex align-items-center justify-content-end gap-1">
-                <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff;" href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}"
-                  class="btn btn-sm border text-dark rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
-                  style="width: 28px; height: 28px;" title="View Details">
+                <a style="background-color: #0ea5e9; border-color: #0ea5e9; color: #ffffff; width: 28px; height: 28px;" href="{% url 'leads:lead_detail' lead.pk %}{% if query_params %}?{{ query_params }}{% endif %}"
+                  class="btn btn-sm border rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
+                  title="View Details">
                   <i class="fa-regular fa-eye" style="font-size: 0.72rem;"></i>
                 </a>
-                    {% if query_params %}
-                    <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}" target="_blank"
-                    class="btn btn-sm border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
-                    style="width: 28px; height: 28px;" title="WhatsApp Patient">
-                    <i class="fa-brands fa-whatsapp" style="font-size: 0.85rem;"></i>
-                  </a>
-                    <a style="background-color: #1e3a8a; border-color: #1e3a8a; color: #ffffff;" href="tel:{{ lead.mobile }}"
-                    class="btn btn-sm border text-primary rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
-                    style="width: 28px; height: 28px;" title="Call Patient">
-                    <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
-                  </a>
-                    {% endif %}
+                <a href="{% url 'leads:lead_archive' lead.pk %}?next={{ request.get_full_path|urlencode }}" data-confirm="Restore {{ lead.name|escapejs }} back to active leads?" style="background-color: #16a34a; border-color: #16a34a; color: #ffffff; width: 28px; height: 28px;" class="btn btn-sm border rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs" title="Restore Lead">
+                  <i class="fa-solid fa-rotate-left" style="font-size: 0.72rem;"></i>
+                </a>
                 </div>
             </td>
 

@@ -459,7 +459,7 @@
             </ul>
           </div>
           <span class="small text-muted">
-            <i class="fa-solid fa-circle-info text-primary me-1"></i>Appointments booked directly by Telecallers &amp; Admins
+            <i class="fa-solid fa-circle-info text-primary me-1"></i>
           </span>
         </div>
 
@@ -475,7 +475,7 @@
                     <th class="ps-4">Patient Name</th>
                     <th>Contact</th>
                     <th>Department</th>
-                    <th>Condition / Disease</th>
+                    <th>Disease</th>
                     <th>Date / Slot</th>
                     <th>Telecaller / Note</th>
                     <th class="pe-4 text-end">Actions</th>
@@ -499,7 +499,7 @@
                       <div class="small text-muted">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
                     </td>
                     <td>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"General Consultation" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"General Consultation" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-success">{{ apt.appointment_date|date:"d M Y" }}</div>
@@ -554,7 +554,7 @@
                     <th class="ps-4">Patient Name</th>
                     <th>Contact</th>
                     <th>Department</th>
-                    <th>Condition / Disease</th>
+                    <th>Disease</th>
                     <th>Date / Slot</th>
                     <th>Telecaller / Note</th>
                     <th class="pe-4 text-end">Actions</th>
@@ -578,7 +578,7 @@
                       <div class="small text-muted">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
                     </td>
                     <td>
-                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"Consultation" }}</span>
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"Consultation" }}</span>
                     </td>
                     <td>
                       <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>
@@ -649,7 +649,7 @@
                 <th class="ps-4">Patient Name</th>
                 <th>Contact</th>
                 <th>Department</th>
-                <th>Condition / Disease</th>
+                <th>Disease</th>
                 <th>Consultation Date</th>
                 <th>Clinical Remarks / Notes</th>
                 <th class="pe-4 text-end">Actions</th>
@@ -673,7 +673,7 @@
                   <div class="small text-muted">{{ apt.doctor_name|default:user.get_full_name|default:user.username }}</div>
                 </td>
                 <td>
-                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"Consultation" }}</span>
+                  <span class="badge bg-info bg-opacity-10 text-info border border-info-subtle">{{ apt.lead.custom_data.disease|default:apt.lead.custom_disease|default:apt.lead.custom_data.disease|default:"Consultation" }}</span>
                 </td>
                 <td>
                   <div class="fw-bold text-primary">{{ apt.appointment_date|date:"d M Y" }}</div>

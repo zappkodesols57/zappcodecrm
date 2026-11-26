@@ -328,91 +328,6 @@
 {% endif %}
 
 <!-- Active Applied Filters Chips Bar (if any applied) -->
-{% if active_filters_count > 0 or q or date_from_val or date_to_val or request.GET.filter or request.GET.campaign %}
-<div class="card border-0 shadow-xs rounded-3 mb-2.5 bg-white px-3 py-2" style="border: 1px solid #E2E8F0 !important;">
-  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-1.5 flex-wrap">
-      <span class="fw-bold text-uppercase d-inline-block me-1" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
-        APPLIED FILTERS:
-      </span>
-
-      {% if q %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Search:</strong> "{{ q }}"
-      </span>
-      {% endif %}
-
-      {% if request.GET.filter and request.GET.filter != 'all' %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Date:</strong> 
-        {% if request.GET.filter == 'today' %}Today
-        {% elif request.GET.filter == '7days' %}Last 7 Days
-        {% elif request.GET.filter == '30days' %}Last 30 Days
-        {% else %}{{ request.GET.filter }}{% endif %}
-      </span>
-      {% endif %}
-
-      {% if date_from_val or date_to_val %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Date Range:</strong> {% if date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} to {% if date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
-      </span>
-      {% endif %}
-
-      {% for stg in selected_stages %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Stage:</strong> {{ stg }}
-      </span>
-      {% endfor %}
-
-      {% for ds in selected_deal_statuses %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Status:</strong> {{ ds }}
-      </span>
-      {% endfor %}
-
-      {% for doc in selected_doctors %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Doctor:</strong> {{ doc }}
-      </span>
-      {% endfor %}
-
-      {% for dept in selected_departments %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Dept:</strong> {{ dept }}
-      </span>
-      {% endfor %}
-
-      {% for src in selected_sources %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Source:</strong> {{ src }}
-      </span>
-      {% endfor %}
-
-      {% for camp in selected_campaigns %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Campaign:</strong> {{ camp }}
-      </span>
-      {% endfor %}
-
-      {% if request.GET.campaign and not selected_campaigns %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Campaign:</strong> {{ request.GET.campaign }}
-      </span>
-      {% endif %}
-
-      {% for loc in selected_locations %}
-      <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-        <strong class="text-muted">Location:</strong> {{ loc }}
-      </span>
-      {% endfor %}
-    </div>
-
-    <a href="{% url 'leads:lead_list' %}" class="btn btn-link p-0 text-danger text-decoration-none small fw-bold d-flex align-items-center gap-1" style="font-size: 0.72rem;">
-      <i class="fa-solid fa-arrow-rotate-left"></i> Reset All
-    </a>
-  </div>
-</div>
-{% endif %}
 
 <!-- 2. UNIFIED MAIN CARD: HEADING + INLINE FILTERS + TABLE (Exact Image 3 Layout) -->
 <div class="report-table-card mb-4">
@@ -504,15 +419,11 @@
       <div class="filter-item-dropdown">
         <select name="deal_status" class="form-select no-tom-select">
           <option value="">Select Status</option>
-          <option value="OPEN" {% if 'OPEN' in selected_deal_statuses %}selected{% endif %}>Open</option>
-          <option value="PENDING" {% if 'PENDING' in selected_deal_statuses %}selected{% endif %}>Pending</option>
-          <option value="WON" {% if 'WON' in selected_deal_statuses %}selected{% endif %}>Won / Payment Done</option>
-          <option value="LOST" {% if 'LOST' in selected_deal_statuses %}selected{% endif %}>Lost</option>
-          {% for st_item in hospital_statuses %}
-          {% if st_item.name|upper not in "OPEN,PENDING,WON,LOST" %}
-          <option value="{{ st_item.name }}" {% if st_item.name in selected_deal_statuses %}selected{% endif %}>{{ st_item.name }}</option>
-          {% endif %}
-          {% endfor %}
+          <option value="New" {% if 'New' in selected_deal_statuses %}selected{% endif %}>New</option>
+          <option value="Contacted" {% if 'Contacted' in selected_deal_statuses %}selected{% endif %}>Contacted</option>
+          <option value="Interested" {% if 'Interested' in selected_deal_statuses %}selected{% endif %}>Interested</option>
+          <option value="Won" {% if 'Won' in selected_deal_statuses or 'WON' in selected_deal_statuses %}selected{% endif %}>Won</option>
+          <option value="Lost" {% if 'Lost' in selected_deal_statuses or 'LOST' in selected_deal_statuses %}selected{% endif %}>Lost</option>
         </select>
       </div>
 
@@ -839,7 +750,6 @@
                   style="width: 28px; height: 28px;" title="Edit Lead">
                   <i class="fa-regular fa-pen-to-square" style="font-size: 0.72rem;"></i>
                 </a>
-                    {% if query_params %}
                     <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.mobile|cut:' '|cut:'+'|cut:'-' }}" target="_blank"
                     class="btn btn-sm border text-success rounded-circle d-inline-flex align-items-center justify-content-center shadow-xs"
                     style="width: 28px; height: 28px;" title="WhatsApp Patient">
@@ -850,7 +760,6 @@
                     style="width: 28px; height: 28px;" title="Call Patient">
                     <i class="fa-solid fa-phone" style="font-size: 0.72rem;"></i>
                   </a>
-                    {% endif %}
                 </div>
             </td>
 

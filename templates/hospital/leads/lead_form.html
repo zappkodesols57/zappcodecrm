@@ -885,7 +885,32 @@
           <div class="col-md-6">
             <div class="crm-form-row mb-0">
               <label class="crm-form-label">Disease / Condition</label>
-              <div class="crm-form-field">{{ form.disease }}</div>
+              <div class="crm-form-field">
+                {{ form.disease }}
+                <input type="text" name="other_disease_text" id="otherDiseaseInput" class="form-control mt-2" style="display: none !important;" placeholder="Enter disease / condition..." value="{{ form.instance.custom_data.disease|default:'' }}">
+              </div>
+              <script>
+                (function() {
+                  function toggleOtherDisease() {
+                    const sel = document.getElementById('id_disease') || document.querySelector('[name="disease"]');
+                    const inp = document.getElementById('otherDiseaseInput');
+                    if (!sel || !inp) return;
+                    const txt = (sel.options[sel.selectedIndex]?.text || sel.value || '').trim().toLowerCase();
+                    if (txt === 'other') {
+                      inp.style.setProperty('display', 'block', 'important');
+                      inp.required = true;
+                    } else {
+                      inp.style.setProperty('display', 'none', 'important');
+                      inp.required = false;
+                    }
+                  }
+                  document.addEventListener('DOMContentLoaded', function() {
+                    const sel = document.getElementById('id_disease') || document.querySelector('[name="disease"]');
+                    if (sel) sel.addEventListener('change', toggleOtherDisease);
+                    toggleOtherDisease();
+                  });
+                })();
+              </script>
             </div>
           </div>
 
@@ -1203,54 +1228,49 @@
 <!-- SAVE LEAD CONFIRMATION MODAL (Save Only vs Save & Send WhatsApp)          -->
 <!-- ========================================================================= -->
 <div class="modal fade" id="saveConfirmationModal" tabindex="-1" aria-labelledby="saveConfirmationModalLabel" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 border-0 shadow-lg">
-      <div class="modal-header border-bottom py-3 px-4 bg-light rounded-top-4 justify-content-between">
-        <h6 class="modal-title fw-bold text-dark mb-0" id="saveConfirmationModalLabel">
-          <i class="fa-solid fa-circle-check text-primary me-2"></i>Save Lead Confirmation
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+    <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+      <div class="modal-header border-0 py-2.5 px-3" style="background-color: #052042 !important;">
+        <h6 class="modal-title fw-bold text-white mb-0" id="saveConfirmationModalLabel" style="font-size: 0.92rem;">
+          Save Lead Confirmation
         </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body p-4">
-        <div class="text-center mb-3">
-          <div id="modalStatusIcon" class="avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2" style="width: 48px; height: 48px;">
-            <i class="fa-solid fa-circle-check text-primary fs-4"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-1" id="modalPromptTitle">Confirm Lead Action</h5>
-          <p class="text-muted small mb-0" id="modalPromptSubtitle">Choose how to save this lead.</p>
+      <div class="modal-body p-3">
+        <div class="mb-3">
+          <h6 class="fw-bold text-dark mb-0" id="modalPromptTitle">Confirm Lead Action</h6>
+        </div>
+
+        <!-- Patient Quick Summary -->
+        <div class="d-flex justify-content-between align-items-center small mb-3 pb-2 border-bottom">
+          <span class="text-muted">Patient: <strong class="text-dark" id="modalPatientName">—</strong></span>
+          <span class="text-muted">Mobile: <strong class="text-dark" id="modalPatientMobile">—</strong></span>
         </div>
 
         <!-- WhatsApp Preview Box (Conditional) -->
-        <div id="modalWhatsAppBox" class="p-3 rounded-3 border bg-light mb-3" style="display: none;">
+        <div id="modalWhatsAppBox" class="p-2.5 rounded-3 border mb-1" style="display: none; background: #f0fdf4; border-color: #bbf7d0 !important;">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="small fw-bold text-success">
-              WhatsApp Message Preview:
+              <i class="fa-brands fa-whatsapp me-1"></i>WhatsApp Message Preview
             </span>
             <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;" id="modalTemplateBadge">
               Auto-filled
             </span>
           </div>
-          <div class="p-2 bg-white rounded border text-muted small text-break" style="font-size: 0.82rem; white-space: pre-line; max-height: 140px; overflow-y: auto;" id="modalWhatsAppPreviewText">
+          <div class="p-2.5 bg-white rounded-2 border text-dark small text-break" style="font-size: 0.82rem; white-space: pre-line; max-height: 150px; overflow-y: auto; border-color: #dcfce7 !important;" id="modalWhatsAppPreviewText">
             ...
           </div>
         </div>
-
-        <!-- Patient Quick Summary -->
-        <div class="p-2 px-3 bg-light rounded-3 border small mb-2 d-flex justify-content-between align-items-center">
-          <span class="text-muted">Patient: <strong class="text-dark" id="modalPatientName">—</strong></span>
-          <span class="text-muted">Mobile: <strong class="text-dark" id="modalPatientMobile">—</strong></span>
-        </div>
       </div>
-      <div class="modal-footer border-top py-2 px-4 bg-light rounded-bottom-4 d-flex justify-content-center gap-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+      <div class="modal-footer border-top py-2.5 px-3 bg-light">
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-bs-dismiss="modal">
           Cancel
         </button>
-        <!-- Option 1: Save Lead (Only Save) -->
-        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-4 fw-semibold" id="btnModalSaveOnly" onclick="submitLeadForm(false)">
+        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold" id="btnModalSaveOnly" onclick="submitLeadForm(false)">
           Save Lead
         </button>
-        <!-- Option 2: Save & Send WhatsApp Message -->
-        <button type="button" class="btn btn-sm btn-success rounded-pill px-4 fw-semibold" id="btnModalSaveWhatsApp" onclick="submitLeadForm(true)" style="display: none;">
-          Save & Send WhatsApp
+        <button type="button" class="btn btn-sm btn-success rounded-pill fw-semibold" id="btnModalSaveWhatsApp" onclick="submitLeadForm(true)" style="display: none; background-color: #25D366; border-color: #25D366;">
+          Save &amp; Send WhatsApp
         </button>
       </div>
     </div>

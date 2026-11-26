@@ -18,20 +18,24 @@
     <form method="get" id="topUnifiedFilterForm">
       <!-- Retain any other existing GET params except page, lead_date, campaign, q, date_from, date_to -->
       {% for k, v in request.GET.items %}
-        {% if k != 'lead_date' and k != 'campaign' and k != 'q' and k != 'date_from' and k != 'date_to' and k != 'filter' and k != 'page' %}
-          <input type="hidden" name="{{ k }}" value="{{ v }}">
-        {% endif %}
+      {% if k != 'lead_date' and k != 'campaign' and k != 'q' and k != 'date_from' and k != 'date_to' and k != 'filter' and k != 'page' %}
+      <input type="hidden" name="{{ k }}" value="{{ v }}">
+      {% endif %}
       {% endfor %}
 
       <div class="row g-2 align-items-end">
-        
+
         <!-- 1. Date Range Block -->
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
+          <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block"
+            style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
             DATE RANGE
           </label>
-          <select name="lead_date" id="topDatePresetSelect" class="form-select form-select-sm no-tom-select border top-filter-control" onchange="handleTopDateDropdownChange(this.value)">
-            <option value="" {% if not request.GET.lead_date and not request.GET.filter and not request.GET.date_from and not request.GET.date_to and not date_from_val and not date_to_val %}selected{% endif %}>Date range: All</option>
+          <select name="lead_date" id="topDatePresetSelect"
+            class="form-select form-select-sm no-tom-select border top-filter-control"
+            onchange="handleTopDateDropdownChange(this.value)">
+            <option value="" {% if not request.GET.lead_date and not request.GET.filter and not request.GET.date_from and not request.GET.date_to and not date_from_val and not date_to_val %}selected{% endif %}>Date range:
+              All</option>
             <option value="today" {% if request.GET.lead_date == 'today' or request.GET.filter == 'today' %}selected{% endif %}>Today</option>
             <option value="yesterday" {% if request.GET.lead_date == 'yesterday' or request.GET.filter == 'yesterday' %}selected{% endif %}>Yesterday</option>
             <option value="last_7_days" {% if request.GET.lead_date == 'last_7_days' or request.GET.lead_date == '7_days' or request.GET.filter == '7days' %}selected{% endif %}>7 Days</option>
@@ -39,47 +43,62 @@
             <option value="this_month" {% if request.GET.lead_date == 'this_month' or request.GET.filter == 'this_month' %}selected{% endif %}>This Month</option>
             <option value="custom" {% if request.GET.lead_date == 'custom' or request.GET.date_from or request.GET.date_to or date_from_val or date_to_val %}selected{% endif %}>
               {% if request.GET.date_from or request.GET.date_to or date_from_val or date_to_val %}
-                📅 {% if request.GET.date_from %}{{ request.GET.date_from|slice:"8:10" }}-{{ request.GET.date_from|slice:"5:7" }}-{{ request.GET.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} → {% if request.GET.date_to %}{{ request.GET.date_to|slice:"8:10" }}-{{ request.GET.date_to|slice:"5:7" }}-{{ request.GET.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
+              📅 {% if request.GET.date_from %}{{ request.GET.date_from|slice:"8:10" }}-{{
+              request.GET.date_from|slice:"5:7" }}-{{ request.GET.date_from|slice:"0:4" }}{% elif date_from_val %}{{
+              date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}Start{% endif %} → {% if request.GET.date_to %}{{ request.GET.date_to|slice:"8:10" }}-{{
+              request.GET.date_to|slice:"5:7" }}-{{ request.GET.date_to|slice:"0:4" }}{% elif date_to_val %}{{
+              date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
               {% else %}
-                Custom Date Range...
+              Custom Date Range...
               {% endif %}
             </option>
           </select>
           <!-- Hidden inputs for custom date submission -->
-          <input type="hidden" name="date_from" id="top_inputDateFrom" value="{{ request.GET.date_from|default:date_from_val|default:'' }}">
-          <input type="hidden" name="date_to" id="top_inputDateTo" value="{{ request.GET.date_to|default:date_to_val|default:'' }}">
+          <input type="hidden" name="date_from" id="top_inputDateFrom"
+            value="{{ request.GET.date_from|default:date_from_val|default:'' }}">
+          <input type="hidden" name="date_to" id="top_inputDateTo"
+            value="{{ request.GET.date_to|default:date_to_val|default:'' }}">
         </div>
 
         <!-- 2. Campaigns Dropdown Block -->
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
+          <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block"
+            style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
             CAMPAIGNS
           </label>
-          <select name="campaign" id="topCampaignSelect" class="form-select form-select-sm no-tom-select border top-filter-control">
+          <select name="campaign" id="topCampaignSelect"
+            class="form-select form-select-sm no-tom-select border top-filter-control">
             <option value="">All Campaigns ({{ total_count }})</option>
             {% for camp in campaign_breakdown %}
-              <option value="{{ camp.name }}" {% if request.GET.campaign == camp.name %}selected{% endif %}>
-                {{ camp.name }} ({{ camp.count }})
-              </option>
+            <option value="{{ camp.name }}" {% if request.GET.campaign == camp.name %}selected{% endif %}>
+              {{ camp.name }} ({{ camp.count }})
+            </option>
             {% endfor %}
           </select>
         </div>
 
         <!-- 3. Search Keyword Block -->
         <div class="col-12 col-sm-6 col-lg-3">
-          <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block" style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
+          <label class="form-label text-muted fw-bold text-uppercase mb-1 d-block"
+            style="font-size: 0.70rem; letter-spacing: 0.4px; color: #052042 !important;">
             SEARCH
           </label>
-          <input type="search" name="q" id="topSearchInput" class="form-control form-control-sm border top-filter-control" placeholder="Search name, phone, email, ID..." value="{{ q|default:'' }}" autocomplete="off">
+          <input type="search" name="q" id="topSearchInput"
+            class="form-control form-control-sm border top-filter-control"
+            placeholder="Search name, phone, email, ID..." value="{{ q|default:'' }}" autocomplete="off">
         </div>
 
         <!-- 4. Action Buttons Block (Apply Filters & Clear) -->
         <div class="col-12 col-sm-6 col-lg-3">
           <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-sm btn-brand text-white flex-fill shadow-sm d-flex align-items-center justify-content-center fw-semibold top-filter-control" style="background-color: #052042; border-color: #052042;">
+            <button type="submit"
+              class="btn btn-sm btn-brand text-white flex-fill shadow-sm d-flex align-items-center justify-content-center fw-semibold top-filter-control"
+              style="background-color: #052042; border-color: #052042;">
               <i class="fa-solid fa-filter me-1.5" style="font-size: 0.75rem;"></i> Apply Filters
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center fw-semibold top-filter-control" onclick="clearTopDateAndCampaignFilters()" title="Reset all filters">
+            <button type="button"
+              class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center fw-semibold top-filter-control"
+              onclick="window.location.href=window.location.pathname;" title="Reset all filters">
               <i class="fa-solid fa-rotate-left me-1.5" style="font-size: 0.75rem;"></i> Clear
             </button>
           </div>
@@ -89,47 +108,6 @@
     </form>
 
     <!-- Active Applied Filters Chips Bar (Shows applied filter details) -->
-    {% if date_from_val or date_to_val or request.GET.filter or request.GET.campaign or q %}
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2.5 pt-2.5 border-top">
-      <div class="d-flex align-items-center gap-1.5 flex-wrap">
-        <span class="text-muted fw-bold text-uppercase d-inline-block me-1" style="font-size: 0.68rem; letter-spacing: 0.4px; color: #052042 !important;">
-          APPLIED FILTERS:
-        </span>
-
-        {% if q %}
-        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-          <strong class="text-muted">Search:</strong> "{{ q }}"
-        </span>
-        {% endif %}
-
-        {% if request.GET.filter and request.GET.filter != 'all' %}
-        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-          <strong class="text-muted">Date:</strong> 
-          {% if request.GET.filter == 'today' %}Today
-          {% elif request.GET.filter == '7days' %}Last 7 Days
-          {% elif request.GET.filter == '30days' %}Last 30 Days
-          {% else %}{{ request.GET.filter }}{% endif %}
-        </span>
-        {% endif %}
-
-        {% if date_from_val or date_to_val %}
-        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-          <strong class="text-muted">Date Range:</strong> {{ date_from_val|default:'Start' }} to {{ date_to_val|default:'Today' }}
-        </span>
-        {% endif %}
-
-        {% if request.GET.campaign %}
-        <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" style="font-size: 0.72rem;">
-          <strong class="text-muted">Campaign:</strong> {{ request.GET.campaign }}
-        </span>
-        {% endif %}
-      </div>
-
-      <button type="button" class="btn btn-link p-0 text-danger text-decoration-none small fw-bold d-flex align-items-center gap-1" onclick="clearTopDateAndCampaignFilters()" style="font-size: 0.72rem;">
-        <i class="fa-solid fa-arrow-rotate-left"></i> Reset All
-      </button>
-    </div>
-    {% endif %}
 
   </div>
 </div>
@@ -150,10 +128,12 @@
     font-size: 0.75rem;
     transition: all 0.15s ease;
   }
+
   .cal-nav-btn:hover {
     background: #e2e8f0;
     color: #0f172a;
   }
+
   .cal-day-cell {
     height: 34px;
     display: flex;
@@ -167,18 +147,22 @@
     margin: 1px 0;
     transition: background 0.12s ease, color 0.12s ease;
   }
+
   .cal-day-cell:hover:not(.cal-day-future):not(.cal-day-start):not(.cal-day-end) {
     background-color: #f1f5f9;
   }
+
   .cal-day-empty {
     height: 34px;
     visibility: hidden;
   }
+
   .cal-day-future {
     color: #cbd5e1 !important;
     cursor: not-allowed !important;
     background: transparent !important;
   }
+
   .cal-day-start {
     background-color: #052042 !important;
     color: #ffffff !important;
@@ -186,6 +170,7 @@
     border-top-right-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
   }
+
   .cal-day-end {
     background-color: #052042 !important;
     color: #ffffff !important;
@@ -193,15 +178,18 @@
     border-top-left-radius: 0 !important;
     border-bottom-left-radius: 0 !important;
   }
+
   .cal-day-start.cal-day-end {
     border-radius: 6px !important;
   }
+
   .cal-day-in-range {
     background-color: #dbeafe !important;
     color: #1e3a8a !important;
     font-weight: 600 !important;
     border-radius: 0 !important;
   }
+
   .cal-day-hover-range {
     background-color: #eff6ff !important;
     color: #1e40af !important;
@@ -209,7 +197,8 @@
   }
 </style>
 
-<div class="modal fade" id="top_customDateModal" tabindex="-1" aria-labelledby="top_customDateModalLabel" aria-hidden="true">
+<div class="modal fade" id="top_customDateModal" tabindex="-1" aria-labelledby="top_customDateModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
     <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
       <div class="modal-header py-2.5 px-3" style="background-color: #052042; color: #ffffff;">
@@ -221,13 +210,17 @@
       <div class="modal-body p-3">
         <!-- 2 Selection Mode Tabs: From Date & To Date -->
         <div class="btn-group w-100 mb-2.5" role="group">
-          <input type="radio" class="btn-check" name="top_modal_mode" id="top_modal_pick_from" value="from" checked onchange="setCalPickMode('top', 'from')">
-          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="top_modal_pick_from" style="font-size: 0.78rem;">
+          <input type="radio" class="btn-check" name="top_modal_mode" id="top_modal_pick_from" value="from" checked
+            onchange="setCalPickMode('top', 'from')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="top_modal_pick_from"
+            style="font-size: 0.78rem;">
             1. From Date
           </label>
 
-          <input type="radio" class="btn-check" name="top_modal_mode" id="top_modal_pick_to" value="to" onchange="setCalPickMode('top', 'to')">
-          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="top_modal_pick_to" style="font-size: 0.78rem;">
+          <input type="radio" class="btn-check" name="top_modal_mode" id="top_modal_pick_to" value="to"
+            onchange="setCalPickMode('top', 'to')">
+          <label class="btn btn-outline-primary btn-sm py-1.5 fw-semibold" for="top_modal_pick_to"
+            style="font-size: 0.78rem;">
             2. To Date
           </label>
         </div>
@@ -244,11 +237,19 @@
             </button>
           </div>
 
-          <div class="d-grid text-center text-muted fw-semibold mb-1" style="grid-template-columns: repeat(7, 1fr); font-size: 0.72rem;">
-            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+          <div class="d-grid text-center text-muted fw-semibold mb-1"
+            style="grid-template-columns: repeat(7, 1fr); font-size: 0.72rem;">
+            <div>Su</div>
+            <div>Mo</div>
+            <div>Tu</div>
+            <div>We</div>
+            <div>Th</div>
+            <div>Fr</div>
+            <div>Sa</div>
           </div>
 
-          <div class="d-grid text-center" id="top_calDaysGrid" style="grid-template-columns: repeat(7, 1fr);" onmouseleave="handleCalMouseLeave('top')">
+          <div class="d-grid text-center" id="top_calDaysGrid" style="grid-template-columns: repeat(7, 1fr);"
+            onmouseleave="handleCalMouseLeave('top')">
           </div>
         </div>
 
@@ -259,395 +260,403 @@
         <!-- Selected Range Preview Box -->
         <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-1">
           <div>
-            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">From Date</span>
+            <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">From
+              Date</span>
             <strong class="text-dark" id="top_modalDispFrom" style="font-size: 0.85rem;">
-              {% if request.GET.date_from %}{{ request.GET.date_from|slice:"8:10" }}-{{ request.GET.date_from|slice:"5:7" }}-{{ request.GET.date_from|slice:"0:4" }}{% elif date_from_val %}{{ date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}(Open / Oldest){% endif %}
+              {% if request.GET.date_from %}{{ request.GET.date_from|slice:"8:10" }}-{{
+              request.GET.date_from|slice:"5:7" }}-{{ request.GET.date_from|slice:"0:4" }}{% elif date_from_val %}{{
+              date_from_val|slice:"8:10" }}-{{ date_from_val|slice:"5:7" }}-{{ date_from_val|slice:"0:4" }}{% else %}(Open / Oldest){% endif %}
             </strong>
           </div>
           <div class="text-muted">➔</div>
           <div class="text-end">
             <span class="text-muted small d-block" style="font-size: 0.68rem; text-transform: uppercase;">To Date</span>
             <strong class="text-dark" id="top_modalDispTo" style="font-size: 0.85rem;">
-              {% if request.GET.date_to %}{{ request.GET.date_to|slice:"8:10" }}-{{ request.GET.date_to|slice:"5:7" }}-{{ request.GET.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{ date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
+              {% if request.GET.date_to %}{{ request.GET.date_to|slice:"8:10" }}-{{ request.GET.date_to|slice:"5:7"
+              }}-{{ request.GET.date_to|slice:"0:4" }}{% elif date_to_val %}{{ date_to_val|slice:"8:10" }}-{{
+              date_to_val|slice:"5:7" }}-{{ date_to_val|slice:"0:4" }}{% else %}Today{% endif %}
             </strong>
           </div>
         </div>
       </div>
       <div class="modal-footer py-2 px-3 bg-light d-flex justify-content-center align-items-center gap-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1" onclick="clearTopModalDateRange()">Clear</button>
-        <button type="button" class="btn btn-sm btn-primary px-3 py-1 fw-semibold" style="background-color: #052042; border-color: #052042;" onclick="applyTopModalDateRange()">Apply Range</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1"
+          onclick="clearTopModalDateRange()">Clear</button>
+        <button type="button" class="btn btn-sm btn-primary px-3 py-1 fw-semibold"
+          style="background-color: #052042; border-color: #052042;" onclick="applyTopModalDateRange()">Apply
+          Range</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-let calStates = window.calStates || {};
+  let calStates = window.calStates || {};
 
-function formatIsoToDdMmYyyy(isoDateStr) {
-  if (!isoDateStr) return '';
-  const parts = isoDateStr.split('-');
-  if (parts.length === 3 && parts[0].length === 4) {
-    return parts[2] + '-' + parts[1] + '-' + parts[0];
-  }
-  return isoDateStr;
-}
-
-function initCalState(prefix, fromIso, toIso) {
-  const today = new Date();
-  let viewYear = today.getFullYear();
-  let viewMonth = today.getMonth();
-
-  if (toIso) {
-    const p = toIso.split('-');
-    if (p.length === 3 && p[0].length === 4) {
-      viewYear = parseInt(p[0], 10);
-      viewMonth = parseInt(p[1], 10) - 1;
+  function formatIsoToDdMmYyyy(isoDateStr) {
+    if (!isoDateStr) return '';
+    const parts = isoDateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return parts[2] + '-' + parts[1] + '-' + parts[0];
     }
-  } else if (fromIso) {
-    const p = fromIso.split('-');
-    if (p.length === 3 && p[0].length === 4) {
-      viewYear = parseInt(p[0], 10);
-      viewMonth = parseInt(p[1], 10) - 1;
-    }
+    return isoDateStr;
   }
 
-  calStates[prefix] = {
-    from: fromIso || '',
-    to: toIso || '',
-    mode: (fromIso && !toIso) ? 'to' : 'from',
-    viewYear: viewYear,
-    viewMonth: viewMonth,
-    hoverDate: null
-  };
-}
+  function initCalState(prefix, fromIso, toIso) {
+    const today = new Date();
+    let viewYear = today.getFullYear();
+    let viewMonth = today.getMonth();
 
-function setCalPickMode(prefix, mode) {
-  if (!calStates[prefix]) {
-    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
-    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
-    initCalState(prefix, hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
-  }
-  calStates[prefix].mode = mode;
-  const helper = document.getElementById(prefix + '_modalHelper');
-  if (helper) {
-    if (mode === 'from') {
-      helper.innerHTML = 'Click calendar date to set <strong>From Date</strong>.';
-    } else {
-      helper.innerHTML = 'Click calendar date to set <strong>To Date</strong>.';
-    }
-  }
-  renderCalendar(prefix);
-}
-
-function renderCalendar(prefix) {
-  const state = calStates[prefix];
-  if (!state) return;
-
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-  const headerEl = document.getElementById(prefix + '_calMonthYear');
-  if (headerEl) {
-    headerEl.innerText = `${monthNames[state.viewMonth]} ${state.viewYear}`;
-  }
-
-  const gridEl = document.getElementById(prefix + '_calDaysGrid');
-  if (!gridEl) return;
-  gridEl.innerHTML = '';
-
-  const firstDayIndex = new Date(state.viewYear, state.viewMonth, 1).getDay();
-  const daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
-  const today = new Date();
-  const todayIso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-
-  for (let i = 0; i < firstDayIndex; i++) {
-    const emptyCell = document.createElement('div');
-    emptyCell.className = 'cal-day-empty';
-    gridEl.appendChild(emptyCell);
-  }
-
-  const fromVal = state.from;
-  const toVal = state.to;
-  const hoverVal = state.hoverDate;
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dStr = String(d).padStart(2, '0');
-    const mStr = String(state.viewMonth + 1).padStart(2, '0');
-    const isoDate = `${state.viewYear}-${mStr}-${dStr}`;
-
-    const cell = document.createElement('div');
-    cell.className = 'cal-day-cell';
-    cell.innerText = d;
-
-    if (isoDate > todayIso) {
-      cell.classList.add('cal-day-future');
-    } else {
-      cell.onclick = (e) => {
-        e.stopPropagation();
-        handleCalDateClick(prefix, isoDate);
-      };
-      cell.onmouseenter = () => {
-        handleCalDateHover(prefix, isoDate);
-      };
-    }
-
-    if (fromVal && toVal) {
-      if (isoDate === fromVal && isoDate === toVal) {
-        cell.classList.add('cal-day-start', 'cal-day-end');
-      } else if (isoDate === fromVal) {
-        cell.classList.add('cal-day-start');
-      } else if (isoDate === toVal) {
-        cell.classList.add('cal-day-end');
-      } else if (isoDate > fromVal && isoDate < toVal) {
-        cell.classList.add('cal-day-in-range');
+    if (toIso) {
+      const p = toIso.split('-');
+      if (p.length === 3 && p[0].length === 4) {
+        viewYear = parseInt(p[0], 10);
+        viewMonth = parseInt(p[1], 10) - 1;
       }
-    } else if (fromVal && !toVal) {
-      if (isoDate === fromVal) {
-        cell.classList.add('cal-day-start', 'cal-day-end');
-      } else if (hoverVal && isoDate > fromVal && isoDate <= hoverVal) {
-        cell.classList.add('cal-day-hover-range');
-      }
-    } else if (!fromVal && toVal) {
-      if (isoDate === toVal) {
-        cell.classList.add('cal-day-start', 'cal-day-end');
+    } else if (fromIso) {
+      const p = fromIso.split('-');
+      if (p.length === 3 && p[0].length === 4) {
+        viewYear = parseInt(p[0], 10);
+        viewMonth = parseInt(p[1], 10) - 1;
       }
     }
 
-    gridEl.appendChild(cell);
+    calStates[prefix] = {
+      from: fromIso || '',
+      to: toIso || '',
+      mode: (fromIso && !toIso) ? 'to' : 'from',
+      viewYear: viewYear,
+      viewMonth: viewMonth,
+      hoverDate: null
+    };
   }
 
-  const dispFrom = document.getElementById(prefix + '_modalDispFrom');
-  const dispTo = document.getElementById(prefix + '_modalDispTo');
-  if (dispFrom) {
-    dispFrom.innerText = state.from ? formatIsoToDdMmYyyy(state.from) : '(Open / Oldest)';
-  }
-  if (dispTo) {
-    dispTo.innerText = state.to ? formatIsoToDdMmYyyy(state.to) : 'Today';
-  }
-
-  const rFrom = document.getElementById(prefix + '_modal_pick_from');
-  const rTo = document.getElementById(prefix + '_modal_pick_to');
-  if (state.mode === 'from') {
-    if (rFrom) rFrom.checked = true;
-  } else {
-    if (rTo) rTo.checked = true;
-  }
-}
-
-function handleCalDateClick(prefix, isoDate) {
-  const state = calStates[prefix];
-  if (!state) return;
-
-  if (state.mode === 'from') {
-    state.from = isoDate;
-    state.mode = 'to'; // advance to 2nd click for To date
-  } else {
-    if (!state.from) {
-      state.from = isoDate;
-      state.mode = 'to';
-    } else {
-      if (isoDate < state.from) {
-        state.to = state.from;
-        state.from = isoDate;
+  function setCalPickMode(prefix, mode) {
+    if (!calStates[prefix]) {
+      const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+      const hiddenTo = document.getElementById(prefix + '_inputDateTo');
+      initCalState(prefix, hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+    }
+    calStates[prefix].mode = mode;
+    const helper = document.getElementById(prefix + '_modalHelper');
+    if (helper) {
+      if (mode === 'from') {
+        helper.innerHTML = 'Click calendar date to set <strong>From Date</strong>.';
       } else {
-        state.to = isoDate;
+        helper.innerHTML = 'Click calendar date to set <strong>To Date</strong>.';
       }
-      state.mode = 'from';
     }
-  }
-
-  const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
-  const hiddenTo = document.getElementById(prefix + '_inputDateTo');
-  if (hiddenFrom) hiddenFrom.value = state.from || '';
-  if (hiddenTo) hiddenTo.value = state.to || '';
-
-  const helper = document.getElementById(prefix + '_modalHelper');
-  if (helper) {
-    if (state.from && state.to) {
-      helper.innerHTML = '<span class="text-success fw-bold">✓ Range selected! Click "Apply Range" to filter.</span>';
-    } else if (state.from && !state.to) {
-      helper.innerHTML = 'From date set! Now pick <strong>To Date</strong>, or click <strong>Apply Range</strong> to filter till Today.';
-    } else if (!state.from && state.to) {
-      helper.innerHTML = 'To date set! Click <strong>Apply Range</strong> to filter all leads up to this date.';
-    }
-  }
-
-  renderCalendar(prefix);
-}
-
-function handleCalDateHover(prefix, isoDate) {
-  const state = calStates[prefix];
-  if (!state || (state.from && state.to)) return;
-  if (state.hoverDate !== isoDate) {
-    state.hoverDate = isoDate;
     renderCalendar(prefix);
   }
-}
 
-function handleCalMouseLeave(prefix) {
-  const state = calStates[prefix];
-  if (!state || (state.from && state.to)) return;
-  state.hoverDate = null;
-  renderCalendar(prefix);
-}
+  function renderCalendar(prefix) {
+    const state = calStates[prefix];
+    if (!state) return;
 
-function navCalMonth(prefix, delta) {
-  const state = calStates[prefix];
-  if (!state) return;
-  state.viewMonth += delta;
-  if (state.viewMonth < 0) {
-    state.viewMonth = 11;
-    state.viewYear -= 1;
-  } else if (state.viewMonth > 11) {
-    state.viewMonth = 0;
-    state.viewYear += 1;
-  }
-  renderCalendar(prefix);
-}
-
-function handleTopDateDropdownChange(selectedVal) {
-  if (selectedVal === 'custom') {
-    const hiddenFrom = document.getElementById('top_inputDateFrom');
-    const hiddenTo = document.getElementById('top_inputDateTo');
-    initCalState('top', hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
-    renderCalendar('top');
-
-    const modalEl = document.getElementById('top_customDateModal');
-    if (modalEl) {
-      if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
-      } else if (typeof $ !== 'undefined') {
-        $(modalEl).modal('show');
-      } else {
-        modalEl.classList.add('show');
-        modalEl.style.display = 'block';
-      }
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const headerEl = document.getElementById(prefix + '_calMonthYear');
+    if (headerEl) {
+      headerEl.innerText = `${monthNames[state.viewMonth]} ${state.viewYear}`;
     }
-  } else {
-    const hiddenFrom = document.getElementById('top_inputDateFrom');
-    const hiddenTo = document.getElementById('top_inputDateTo');
-    if (hiddenFrom) hiddenFrom.value = '';
-    if (hiddenTo) hiddenTo.value = '';
 
-    const topForm = document.getElementById('topUnifiedFilterForm');
-    if (topForm) {
-      topForm.submit();
+    const gridEl = document.getElementById(prefix + '_calDaysGrid');
+    if (!gridEl) return;
+    gridEl.innerHTML = '';
+
+    const firstDayIndex = new Date(state.viewYear, state.viewMonth, 1).getDay();
+    const daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
+    const today = new Date();
+    const todayIso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    for (let i = 0; i < firstDayIndex; i++) {
+      const emptyCell = document.createElement('div');
+      emptyCell.className = 'cal-day-empty';
+      gridEl.appendChild(emptyCell);
+    }
+
+    const fromVal = state.from;
+    const toVal = state.to;
+    const hoverVal = state.hoverDate;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dStr = String(d).padStart(2, '0');
+      const mStr = String(state.viewMonth + 1).padStart(2, '0');
+      const isoDate = `${state.viewYear}-${mStr}-${dStr}`;
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-day-cell';
+      cell.innerText = d;
+
+      if (isoDate > todayIso) {
+        cell.classList.add('cal-day-future');
+      } else {
+        cell.onclick = (e) => {
+          e.stopPropagation();
+          handleCalDateClick(prefix, isoDate);
+        };
+        cell.onmouseenter = () => {
+          handleCalDateHover(prefix, isoDate);
+        };
+      }
+
+      if (fromVal && toVal) {
+        if (isoDate === fromVal && isoDate === toVal) {
+          cell.classList.add('cal-day-start', 'cal-day-end');
+        } else if (isoDate === fromVal) {
+          cell.classList.add('cal-day-start');
+        } else if (isoDate === toVal) {
+          cell.classList.add('cal-day-end');
+        } else if (isoDate > fromVal && isoDate < toVal) {
+          cell.classList.add('cal-day-in-range');
+        }
+      } else if (fromVal && !toVal) {
+        if (isoDate === fromVal) {
+          cell.classList.add('cal-day-start', 'cal-day-end');
+        } else if (hoverVal && isoDate > fromVal && isoDate <= hoverVal) {
+          cell.classList.add('cal-day-hover-range');
+        }
+      } else if (!fromVal && toVal) {
+        if (isoDate === toVal) {
+          cell.classList.add('cal-day-start', 'cal-day-end');
+        }
+      }
+
+      gridEl.appendChild(cell);
+    }
+
+    const dispFrom = document.getElementById(prefix + '_modalDispFrom');
+    const dispTo = document.getElementById(prefix + '_modalDispTo');
+    if (dispFrom) {
+      dispFrom.innerText = state.from ? formatIsoToDdMmYyyy(state.from) : '(Open / Oldest)';
+    }
+    if (dispTo) {
+      dispTo.innerText = state.to ? formatIsoToDdMmYyyy(state.to) : 'Today';
+    }
+
+    const rFrom = document.getElementById(prefix + '_modal_pick_from');
+    const rTo = document.getElementById(prefix + '_modal_pick_to');
+    if (state.mode === 'from') {
+      if (rFrom) rFrom.checked = true;
     } else {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('date_from');
-      url.searchParams.delete('date_to');
-      url.searchParams.delete('date');
-      url.searchParams.delete('page');
-
-      if (selectedVal) {
-        url.searchParams.set('lead_date', selectedVal);
-      } else {
-        url.searchParams.delete('lead_date');
-        url.searchParams.delete('filter');
-      }
-      window.location.href = url.toString();
+      if (rTo) rTo.checked = true;
     }
   }
-}
 
-function clearTopModalDateRange() {
-  const state = calStates['top'];
-  if (state) {
-    state.from = '';
-    state.to = '';
-    state.mode = 'from';
-    state.hoverDate = null;
-    renderCalendar('top');
-  }
+  function handleCalDateClick(prefix, isoDate) {
+    const state = calStates[prefix];
+    if (!state) return;
 
-  const hiddenFrom = document.getElementById('top_inputDateFrom');
-  const hiddenTo = document.getElementById('top_inputDateTo');
-  const select = document.getElementById('topDatePresetSelect');
+    if (state.mode === 'from') {
+      state.from = isoDate;
+      state.mode = 'to'; // advance to 2nd click for To date
+    } else {
+      if (!state.from) {
+        state.from = isoDate;
+        state.mode = 'to';
+      } else {
+        if (isoDate < state.from) {
+          state.to = state.from;
+          state.from = isoDate;
+        } else {
+          state.to = isoDate;
+        }
+        state.mode = 'from';
+      }
+    }
 
-  if (hiddenFrom) hiddenFrom.value = '';
-  if (hiddenTo) hiddenTo.value = '';
-  if (select) select.value = '';
-
-  const url = new URL(window.location.href);
-  url.searchParams.delete('date_from');
-  url.searchParams.delete('date_to');
-  url.searchParams.delete('date');
-  url.searchParams.delete('lead_date');
-  url.searchParams.delete('filter');
-  url.searchParams.delete('page');
-  window.location.href = url.toString();
-}
-
-function applyTopModalDateRange() {
-  const state = calStates['top'];
-  const hiddenFrom = document.getElementById('top_inputDateFrom');
-  const hiddenTo = document.getElementById('top_inputDateTo');
-
-  if (state) {
+    const hiddenFrom = document.getElementById(prefix + '_inputDateFrom');
+    const hiddenTo = document.getElementById(prefix + '_inputDateTo');
     if (hiddenFrom) hiddenFrom.value = state.from || '';
     if (hiddenTo) hiddenTo.value = state.to || '';
+
+    const helper = document.getElementById(prefix + '_modalHelper');
+    if (helper) {
+      if (state.from && state.to) {
+        helper.innerHTML = '<span class="text-success fw-bold">✓ Range selected! Click "Apply Range" to filter.</span>';
+      } else if (state.from && !state.to) {
+        helper.innerHTML = 'From date set! Now pick <strong>To Date</strong>, or click <strong>Apply Range</strong> to filter till Today.';
+      } else if (!state.from && state.to) {
+        helper.innerHTML = 'To date set! Click <strong>Apply Range</strong> to filter all leads up to this date.';
+      }
+    }
+
+    renderCalendar(prefix);
   }
 
-  const url = new URL(window.location.href);
-  if (hiddenFrom && hiddenFrom.value) {
-    url.searchParams.set('date_from', hiddenFrom.value);
-  } else {
+  function handleCalDateHover(prefix, isoDate) {
+    const state = calStates[prefix];
+    if (!state || (state.from && state.to)) return;
+    if (state.hoverDate !== isoDate) {
+      state.hoverDate = isoDate;
+      renderCalendar(prefix);
+    }
+  }
+
+  function handleCalMouseLeave(prefix) {
+    const state = calStates[prefix];
+    if (!state || (state.from && state.to)) return;
+    state.hoverDate = null;
+    renderCalendar(prefix);
+  }
+
+  function navCalMonth(prefix, delta) {
+    const state = calStates[prefix];
+    if (!state) return;
+    state.viewMonth += delta;
+    if (state.viewMonth < 0) {
+      state.viewMonth = 11;
+      state.viewYear -= 1;
+    } else if (state.viewMonth > 11) {
+      state.viewMonth = 0;
+      state.viewYear += 1;
+    }
+    renderCalendar(prefix);
+  }
+
+  function handleTopDateDropdownChange(selectedVal) {
+    if (selectedVal === 'custom') {
+      const hiddenFrom = document.getElementById('top_inputDateFrom');
+      const hiddenTo = document.getElementById('top_inputDateTo');
+      initCalState('top', hiddenFrom ? hiddenFrom.value : '', hiddenTo ? hiddenTo.value : '');
+      renderCalendar('top');
+
+      const modalEl = document.getElementById('top_customDateModal');
+      if (modalEl) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+          modal.show();
+        } else if (typeof $ !== 'undefined') {
+          $(modalEl).modal('show');
+        } else {
+          modalEl.classList.add('show');
+          modalEl.style.display = 'block';
+        }
+      }
+    } else {
+      const hiddenFrom = document.getElementById('top_inputDateFrom');
+      const hiddenTo = document.getElementById('top_inputDateTo');
+      if (hiddenFrom) hiddenFrom.value = '';
+      if (hiddenTo) hiddenTo.value = '';
+
+      const topForm = document.getElementById('topUnifiedFilterForm');
+      if (topForm) {
+        topForm.submit();
+      } else {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('date_from');
+        url.searchParams.delete('date_to');
+        url.searchParams.delete('date');
+        url.searchParams.delete('page');
+
+        if (selectedVal) {
+          url.searchParams.set('lead_date', selectedVal);
+        } else {
+          url.searchParams.delete('lead_date');
+          url.searchParams.delete('filter');
+        }
+        window.location.href = url.toString();
+      }
+    }
+  }
+
+  function clearTopModalDateRange() {
+    const state = calStates['top'];
+    if (state) {
+      state.from = '';
+      state.to = '';
+      state.mode = 'from';
+      state.hoverDate = null;
+      renderCalendar('top');
+    }
+
+    const hiddenFrom = document.getElementById('top_inputDateFrom');
+    const hiddenTo = document.getElementById('top_inputDateTo');
+    const select = document.getElementById('topDatePresetSelect');
+
+    if (hiddenFrom) hiddenFrom.value = '';
+    if (hiddenTo) hiddenTo.value = '';
+    if (select) select.value = '';
+
+    const url = new URL(window.location.href);
     url.searchParams.delete('date_from');
-  }
-
-  if (hiddenTo && hiddenTo.value) {
-    url.searchParams.set('date_to', hiddenTo.value);
-  } else {
     url.searchParams.delete('date_to');
+    url.searchParams.delete('date');
+    url.searchParams.delete('lead_date');
+    url.searchParams.delete('filter');
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
   }
 
-  url.searchParams.set('lead_date', 'custom');
-  url.searchParams.delete('filter');
-  url.searchParams.delete('page');
-  window.location.href = url.toString();
-}
+  function applyTopModalDateRange() {
+    const state = calStates['top'];
+    const hiddenFrom = document.getElementById('top_inputDateFrom');
+    const hiddenTo = document.getElementById('top_inputDateTo');
 
-function filterByCampaign(campaignName) {
-  const url = new URL(window.location.href);
-  if (campaignName) {
-    url.searchParams.set('campaign', campaignName);
-  } else {
+    if (state) {
+      if (hiddenFrom) hiddenFrom.value = state.from || '';
+      if (hiddenTo) hiddenTo.value = state.to || '';
+    }
+
+    const url = new URL(window.location.href);
+    if (hiddenFrom && hiddenFrom.value) {
+      url.searchParams.set('date_from', hiddenFrom.value);
+    } else {
+      url.searchParams.delete('date_from');
+    }
+
+    if (hiddenTo && hiddenTo.value) {
+      url.searchParams.set('date_to', hiddenTo.value);
+    } else {
+      url.searchParams.delete('date_to');
+    }
+
+    url.searchParams.set('lead_date', 'custom');
+    url.searchParams.delete('filter');
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+  }
+
+  function filterByCampaign(campaignName) {
+    const url = new URL(window.location.href);
+    if (campaignName) {
+      url.searchParams.set('campaign', campaignName);
+    } else {
+      url.searchParams.delete('campaign');
+    }
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+  }
+
+  function clearTopDateAndCampaignFilters() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('date_from');
+    url.searchParams.delete('date_to');
+    url.searchParams.delete('date');
+    url.searchParams.delete('filter');
     url.searchParams.delete('campaign');
+    url.searchParams.delete('q');
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
   }
-  url.searchParams.delete('page');
-  window.location.href = url.toString();
-}
 
-function clearTopDateAndCampaignFilters() {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('date_from');
-  url.searchParams.delete('date_to');
-  url.searchParams.delete('date');
-  url.searchParams.delete('filter');
-  url.searchParams.delete('campaign');
-  url.searchParams.delete('q');
-  url.searchParams.delete('page');
-  window.location.href = url.toString();
-}
+  document.addEventListener("DOMContentLoaded", function () {
+    const topSearch = document.getElementById("topSearchInput");
+    const topForm = document.getElementById("topInlineSearchForm");
+    if (!topSearch || !topForm) return;
 
-document.addEventListener("DOMContentLoaded", function() {
-  const topSearch = document.getElementById("topSearchInput");
-  const topForm = document.getElementById("topInlineSearchForm");
-  if (!topSearch || !topForm) return;
-
-  let searchTimeout = null;
-  topSearch.addEventListener("input", function() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(function() {
+    let searchTimeout = null;
+    topSearch.addEventListener("input", function () {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(function () {
+        topForm.submit();
+      }, 500);
+    });
+    topSearch.addEventListener("search", function () {
+      clearTimeout(searchTimeout);
       topForm.submit();
-    }, 500);
+    });
   });
-  topSearch.addEventListener("search", function() {
-    clearTimeout(searchTimeout);
-    topForm.submit();
-  });
-});
 </script>
