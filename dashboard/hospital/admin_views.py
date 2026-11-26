@@ -963,8 +963,17 @@ def hospital_admin_home(request):
         st_name = str(l.get('stage__name') or l.get('deal_status') or 'OPEN').strip().upper()
         status_dist[st_name] = status_dist.get(st_name, 0) + 1
 
-    # Sort month_dist chronologically (e.g. 'Jan 2026', 'Feb 2026', ...)
-    month_dist = dict(sorted(month_dist.items(), key=lambda x: datetime.strptime(x[0], '%b %Y')))
+    # Sort month_dist chronologically without strptime (handles 2-digit/outlier years safely)
+    def _month_sort_key(item):
+        parts = item[0].split()
+        if len(parts) == 2 and parts[1].isdigit():
+            try:
+                m_num = datetime.strptime(parts[0], '%b').month
+                return (int(parts[1]), m_num)
+            except Exception:
+                pass
+        return (9999, 99)
+    month_dist = dict(sorted(month_dist.items(), key=_month_sort_key))
 
     # Currency formatter for Indian system (Crores, Lakhs, Thousands)
     def format_indian_currency(amt):
