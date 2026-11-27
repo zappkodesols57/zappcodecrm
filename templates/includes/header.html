@@ -368,30 +368,41 @@
       const m = ((notif && notif.message) || '').toLowerCase();
       const combined = t + ' ' + m;
 
-      // Strict check: only play "New web enquiry received" voice for genuine new lead / web enquiry notifications
+      // Check for new lead / web enquiry notifications
       const isNewLeadEnquiry = (
         t.includes('new lead') ||
-        t.includes('web enquiry') ||
-        t.includes('website lead') ||
+        t.includes('new enquiry') ||
         t.includes('new inquiry') ||
+        t.includes('web enquiry') ||
+        t.includes('web inquiry') ||
+        t.includes('website lead') ||
+        t.includes('website enquiry') ||
+        t.includes('website inquiry') ||
         t.includes('new patient') ||
-        combined.includes('new web enquiry')
+        combined.includes('new web enquiry') ||
+        combined.includes('enquiry received') ||
+        combined.includes('inquiry received')
       ) && !t.includes('follow') && !t.includes('reminder') && !t.includes('appointment') && !t.includes('transfer') && !t.includes('status');
 
       if (isNewLeadEnquiry) {
         if (localStorage.getItem('crm_sound_new_lead') === 'false') return;
+        playLeadAlertSound();
         if ('speechSynthesis' in window) {
           try {
             window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance("New web enquiry received");
-            u.lang = "en-IN";
-            const voices = window.speechSynthesis.getVoices() || [];
-            const inVoice = voices.find(v => /en-in|india|heera|neerja|ravi|prabhat/i.test((v.lang || '') + ' ' + (v.name || '')));
-            if (inVoice) u.voice = inVoice;
-            window.speechSynthesis.speak(u);
-            return;
+            setTimeout(() => {
+              try {
+                const u = new SpeechSynthesisUtterance("New web enquiry received");
+                u.lang = "en-IN";
+                const voices = window.speechSynthesis.getVoices() || [];
+                const inVoice = voices.find(v => /en-in|india|heera|neerja|ravi|prabhat/i.test((v.lang || '') + ' ' + (v.name || '')));
+                if (inVoice) u.voice = inVoice;
+                window.speechSynthesis.speak(u);
+              } catch (e) {}
+            }, 60);
           } catch (e) {}
         }
+        return;
       }
       if (localStorage.getItem('crm_sound_reminder') === 'false') return;
       playLeadAlertSound();

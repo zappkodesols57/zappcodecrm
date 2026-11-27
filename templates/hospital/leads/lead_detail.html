@@ -188,7 +188,7 @@
       <form method="post" action="{% url 'leads:lead_self_assign' lead.pk %}" class="d-inline" onsubmit="return confirm('Do you want to capture and assign this patient lead to yourself?');">
         {% csrf_token %}
         <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-semibold" style="font-size: 0.8rem;">
-          Capture &amp; Assign to Me
+          Capture<span class="d-none d-sm-inline"> &amp; Assign to Me</span>
         </button>
       </form>
       {% endif %}
