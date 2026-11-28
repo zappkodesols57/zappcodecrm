@@ -485,7 +485,7 @@
                   {% for apt in today_apts %}
                   <tr>
                     <td class="ps-4">
-                      <strong class="text-dark d-block"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ apt.lead.name }}</a></strong>
+                      <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
                       <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
                     </td>
                     <td>
@@ -564,7 +564,7 @@
                   {% for apt in upcoming_apts %}
                   <tr>
                     <td class="ps-4">
-                      <strong class="text-dark d-block"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ apt.lead.name }}</a></strong>
+                      <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
                       <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
                     </td>
                     <td>
@@ -659,7 +659,7 @@
               {% for apt in completed_apts %}
               <tr>
                 <td class="ps-4">
-                  <strong class="text-dark d-block"><a href="{% url 'leads:lead_detail' apt.lead.pk %}" class="fw-bold text-dark text-decoration-none hover-primary">{{ apt.lead.name }}</a></strong>
+                  <strong class="text-dark d-block">{{ apt.lead.name }}</strong>
                   <span class="badge bg-light text-primary border" style="font-size: 0.72rem;">#{{ apt.lead.lead_code|default:apt.lead.pk }}</span>
                 </td>
                 <td>

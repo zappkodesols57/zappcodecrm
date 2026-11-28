@@ -368,7 +368,7 @@
   <!-- Header & Counselor Target -->
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
     <div>
-      <h5 class="fw-bold mb-0" style="color: var(--brand-navy);">Dashboard</h5>
+      <span class="text-muted small">Welcome back, <strong class="text-dark">{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; {% now "l, d F Y" %}</span>
     </div>
     <div class="d-flex align-items-center gap-2">
       <span class="badge bg-light text-dark border px-2 py-1">
