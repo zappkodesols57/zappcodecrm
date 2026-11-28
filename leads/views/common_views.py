@@ -3854,6 +3854,7 @@ def lead_detail(request, pk):
         if a.activity_type == "ASSIGNMENT" and "lead captured" in (a.description or "").lower()
     }
     timeline = []
+    seen_timeline_keys = set()
     for a in raw_timeline:
         desc = (a.description or "").strip()
         if a.activity_type == "NOTE" and lead_notes_norm and desc == lead_notes_norm:
@@ -3864,6 +3865,10 @@ def lead_detail(request, pk):
             and a.created_at.strftime("%Y-%m-%d %H:%M") in capture_minutes
         ):
             continue
+        dedup_key = (a.activity_type, desc, a.created_at.strftime("%Y-%m-%d %H:%M"))
+        if dedup_key in seen_timeline_keys:
+            continue
+        seen_timeline_keys.add(dedup_key)
         timeline.append(a)
     followups = lead.followups.select_related("created_by").order_by("-id")[:50]
     admission = getattr(lead, "admission", None)

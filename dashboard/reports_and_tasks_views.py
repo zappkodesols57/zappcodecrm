@@ -947,6 +947,37 @@ def submit_daily_report(request):
 
         form = FormClass(initial=init_data)
 
+    import json
+    from datetime import timedelta
+    week_start = report_date - timedelta(days=6)
+    week_reports = {
+        r.report_date: r
+        for r in DailyReport.objects.filter(user=request.user, report_date__range=(week_start, report_date))
+    }
+    wt_labels, wt_calls, wt_followups, wt_visits = [], [], [], []
+    for i in range(7):
+        d = week_start + timedelta(days=i)
+        wt_labels.append(d.strftime("%a\n%d %b"))
+        rep = week_reports.get(d)
+        if rep:
+            wt_calls.append(rep.calls_attended or 0)
+            wt_followups.append(rep.follow_ups_taken or 0)
+            wt_visits.append(getattr(rep, "patient_visits", 0) or getattr(rep, "office_visits", 0) or 0)
+        elif d == report_date:
+            wt_calls.append(suggestions.get("calls_attended", 0) or 0)
+            wt_followups.append(suggestions.get("follow_ups_taken", 0) or 0)
+            wt_visits.append(suggestions.get("patient_visits", 0) or suggestions.get("office_visits", 0) or 0)
+        else:
+            wt_calls.append(0)
+            wt_followups.append(0)
+            wt_visits.append(0)
+    weekly_trend_json = json.dumps({
+        "labels": wt_labels,
+        "calls": wt_calls,
+        "followups": wt_followups,
+        "visits": wt_visits,
+    })
+
     return render(request, template_name, {
         "active": "daily_report_submit",
         "form": form,
@@ -956,6 +987,7 @@ def submit_daily_report(request):
         "reports_to_user": reports_to_user,
         "recipients": recipients,
         "existing": report_instance is not None,
+        "weekly_trend_json": weekly_trend_json,
     })
 
 
