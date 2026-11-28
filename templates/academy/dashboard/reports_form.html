@@ -850,15 +850,16 @@
 document.addEventListener("DOMContentLoaded", function() {
     // 1. Chart.js Activity Trend initialization
     const ctx = document.getElementById('dailyActivityTrendChart');
-    if (ctx) {
+    const weeklyTrend = {{ weekly_trend_json|safe }};
+    if (ctx && weeklyTrend) {
         new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Mon\nNov 16', 'Tue\nNov 17', 'Wed\nNov 18', 'Thu\nNov 19', 'Fri\nNov 20', 'Sat\nNov 21', 'Sun\nNov 22'],
+                labels: weeklyTrend.labels,
                 datasets: [
                     {
                         label: 'Leads Touched',
-                        data: [5, {{ form.todays_total_leads.value|default:2 }}, 0, 0, 0, 0, 0],
+                        data: weeklyTrend.calls,
                         backgroundColor: '#3b82f6',
                         borderRadius: 6,
                         barPercentage: 0.6,
@@ -866,8 +867,16 @@ document.addEventListener("DOMContentLoaded", function() {
                     },
                     {
                         label: 'Follow-ups Done',
-                        data: [8, {{ form.calls_attended.value|default:2 }}, 0, 0, 0, 0, 0],
+                        data: weeklyTrend.followups,
                         backgroundColor: '#9333ea',
+                        borderRadius: 6,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.7
+                    },
+                    {
+                        label: 'Walk-ins',
+                        data: weeklyTrend.visits,
+                        backgroundColor: '#10b981',
                         borderRadius: 6,
                         barPercentage: 0.6,
                         categoryPercentage: 0.7
