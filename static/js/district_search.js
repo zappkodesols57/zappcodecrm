@@ -138,35 +138,12 @@
 
     function selectOption(district) {
       if (district === 'Other') {
-        inputEl.value = 'Other';
+        if (inputEl.value === 'Other') inputEl.value = '';
+        inputEl.placeholder = 'Enter custom city / district...';
         dropdownList.style.display = 'none';
-        
-        // Show dedicated custom district input right below
-        let otherWrap = wrap.querySelector('.other-custom-district-wrap');
-        if (!otherWrap) {
-          otherWrap = document.createElement('div');
-          otherWrap.className = 'other-custom-district-wrap mt-1.5';
-          otherWrap.innerHTML = `
-            <div class="input-group input-group-sm">
-              <span class="input-group-text bg-light text-primary border-end-0 py-1" style="font-size: 0.78rem;">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </span>
-              <input type="text" class="form-control form-control-sm border-start-0 ps-1 other-custom-input" 
-                placeholder="Enter custom city / district name..." style="font-size: 0.84rem; height: 32px;" required>
-            </div>
-          `;
-          wrap.appendChild(otherWrap);
-
-          const customInput = otherWrap.querySelector('.other-custom-input');
-          customInput.addEventListener('input', function() {
-            inputEl.value = this.value.trim() ? this.value.trim() : 'Other';
-          });
-          customInput.focus();
-        } else {
-          otherWrap.style.display = 'block';
-          const customInput = otherWrap.querySelector('.other-custom-input');
-          if (customInput) customInput.focus();
-        }
+        const otherWrap = wrap.querySelector('.other-custom-district-wrap');
+        if (otherWrap) otherWrap.style.display = 'none';
+        inputEl.focus();
       } else {
         inputEl.value = district;
         dropdownList.style.display = 'none';
@@ -174,7 +151,6 @@
         if (otherWrap) otherWrap.style.display = 'none';
       }
       inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     inputEl.addEventListener('focus', () => {

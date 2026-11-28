@@ -168,6 +168,9 @@ def _telecaller_home_internal(request):
         created_at__range=(start_of_today, end_of_today)
     ).values_list('lead_id', flat=True)) | set(FollowUp.objects.filter(
         created_by=user,
+        updated_at__range=(start_of_today, end_of_today)
+    ).values_list('lead_id', flat=True)) | set(FollowUp.objects.filter(
+        created_by=user,
         followup_date=today_date
     ).values_list('lead_id', flat=True))
 
@@ -183,6 +186,12 @@ def _telecaller_home_internal(request):
         created_at__range=(start_of_today, end_of_today)
     ).values_list('lead_id', flat=True))
 
+    from followups.models import Activity
+    user_today_activity_lead_ids = set(Activity.objects.filter(
+        created_by=user,
+        created_at__range=(start_of_today, end_of_today)
+    ).values_list('lead_id', flat=True))
+
     user_today_updated_lead_ids = set(hospital_leads.filter(
         assigned_to=user,
         updated_at__range=(start_of_today, end_of_today)
@@ -192,7 +201,13 @@ def _telecaller_home_internal(request):
         followup_count=0
     ).values_list('id', flat=True))
 
-    unique_touched_today_ids = user_today_fu_lead_ids | user_today_note_lead_ids | user_today_apt_lead_ids | user_today_updated_lead_ids
+    unique_touched_today_ids = (
+        user_today_fu_lead_ids
+        | user_today_note_lead_ids
+        | user_today_apt_lead_ids
+        | user_today_activity_lead_ids
+        | user_today_updated_lead_ids
+    )
     calls_completed_today = len(unique_touched_today_ids)
     target_remaining = max(0, daily_target - calls_completed_today)
 

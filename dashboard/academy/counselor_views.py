@@ -621,13 +621,26 @@ def academy_counselor_home(request):
 
     p_lost = paginate_dataset(lost_leads_list, req_page if (cur_tab == 'lost') else 1)
 
-    # Calling target countdown for counselor
+    # Calling target countdown for counselor (unique leads touched today: FU, Note, Activity/Stage)
     daily_target = getattr(user, 'daily_call_target', 40) or 40
+    from followups.models import Note as LeadNote
+    from followups.models import Activity
     user_today_fu_lead_ids = set(FollowUp.objects.filter(
         created_by=user,
         created_at__range=(start_of_today, end_of_today)
+    ).values_list('lead_id', flat=True)) | set(FollowUp.objects.filter(
+        created_by=user,
+        updated_at__range=(start_of_today, end_of_today)
     ).values_list('lead_id', flat=True))
-    calls_completed_today = len(user_today_fu_lead_ids)
+    user_today_note_lead_ids = set(LeadNote.objects.filter(
+        created_by=user,
+        created_at__range=(start_of_today, end_of_today)
+    ).values_list('lead_id', flat=True))
+    user_today_act_lead_ids = set(Activity.objects.filter(
+        created_by=user,
+        created_at__range=(start_of_today, end_of_today)
+    ).values_list('lead_id', flat=True))
+    calls_completed_today = len(user_today_fu_lead_ids | user_today_note_lead_ids | user_today_act_lead_ids)
     target_remaining = max(0, daily_target - calls_completed_today)
 
     # Preserve active filter parameters across pagination

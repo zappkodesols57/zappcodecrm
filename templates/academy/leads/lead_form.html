@@ -275,7 +275,7 @@
 
       <!-- Section 1: Lead Information -->
       <div class="crm-section-header">
-        <i class="fa-solid fa-id-card text-primary opacity-75"></i> Student Lead Information
+        Student Details Form
       </div>
 
       <!-- Top Bar: Assigned Counselor & Lead Intent Level -->
@@ -610,6 +610,7 @@
           </div>
 
           <div class="card-body p-3 bg-white rounded-bottom-3">
+            <div id="admissionDetailsBlock">
             <!-- Step A: Academic Allocation -->
             <div class="small fw-bold text-uppercase text-secondary mb-3 pb-1 border-bottom">
               Admission Details
@@ -693,7 +694,9 @@
               </div>
             </div>
 
+            </div>
             <!-- Step B: Financial Ledger -->
+            <div id="billingDetailsBlock">
             <div class="small fw-bold text-uppercase text-secondary mb-2 pb-1 border-bottom">
               Billing Details
             </div>
@@ -768,6 +771,7 @@
                 </div>
               </div>
             </div>
+            </div>
           </div>
         </div>
       </div>
@@ -775,7 +779,7 @@
       <!-- 5. Cancelled / Lost Container -->
       <div id="cancelledContainer" style="display: none;" class="mb-4 p-3 rounded-3 bg-light border border-danger shadow-xs">
         <div class="mb-2">
-          <h6 class="fw-bold text-danger mb-0">Cancellation Reason (Lead Lost)</h6>
+          <h6 class="fw-bold text-danger mb-0">Cancellation Reason</h6>
         </div>
         <div class="crm-form-row mb-0">
           <label class="crm-form-label required" style="width: 25%;">Cancellation Reason</label>
@@ -799,7 +803,7 @@
           Cancel
         </a>
         <button type="submit" id="btnSaveAcademyLead" class="crm-btn-save">
-          <i class="fa-solid fa-floppy-disk me-1"></i> Save Academy Lead
+          <i class="fa-solid fa-floppy-disk me-1"></i> Save Lead
         </button>
       </div>
 
@@ -1624,19 +1628,19 @@ document.addEventListener("DOMContentLoaded", function() {
       if (dealStatusInput) dealStatusInput.value = "OPEN";
       if (admissionStatusInput) admissionStatusInput.value = "HOLD";
     }
-    // 2. Follow up done / completed (no calendar/slot booking, only Notes & Remarks)
+    // 2. Follow up done / completed -> Show remark box
     else if (stageName.includes("follow up completed") || stageName.includes("followup completed") || stageName.includes("follow up done") || stageName.includes("followup done")) {
-      containerFollowup.style.display = "none";
+      containerFollowup.style.display = "block";
       if (inputFollowupDate) {
-        inputFollowupDate.disabled = true;
+        inputFollowupDate.disabled = false;
         inputFollowupDate.required = false;
       }
       if (inputFollowupRemark) {
-        inputFollowupRemark.disabled = true;
-        inputFollowupRemark.required = false;
+        inputFollowupRemark.disabled = false;
+        inputFollowupRemark.required = true;
       }
       if (dealStatusInput) dealStatusInput.value = "OPEN";
-      if (admissionStatusInput) admissionStatusInput.value = "HOLD";
+      if (admissionStatusInput) admissionStatusInput.value = "OPEN";
     }
     // 3. Visit planned
     else if (stageName.includes("visit planned")) {
@@ -1670,31 +1674,56 @@ document.addEventListener("DOMContentLoaded", function() {
       if (dealStatusInput) dealStatusInput.value = "INTERESTED";
       if (admissionStatusInput) admissionStatusInput.value = "OPEN";
     }
-    // 6. Admission planned
-    else if (stageName.includes("admission planned") || stageName.includes("admission pending")) {
-      containerAdmPlan.style.display = "block";
-      inputAdmDate.required = true;
-      if (dealStatusInput) dealStatusInput.value = "INTERESTED";
-      if (admissionStatusInput) admissionStatusInput.value = "OPEN";
-      if (tempInput && (tempInput.value === "COLD" || tempInput.value === "FREEZE")) {
-        tempInput.value = "WARM";
-      }
+    // 5b. Follow Up Done -> Remark only
+    else if (stageName.includes("follow up done")) {
+      containerFollowup.style.display = "block";
+      if (inputFollowupDate) { inputFollowupDate.disabled = false; inputFollowupDate.required = false; }
+      if (inputFollowupRemark) { inputFollowupRemark.disabled = false; inputFollowupRemark.required = true; }
+      if (dealStatusInput) dealStatusInput.value = "OPEN";
     }
-    // 7. Admission and payment (Won)
-    else if (stageName.includes("admission and payment") || stageName.includes("admission & payment") || stageName.includes("admission done") || stageName.includes("payment done")) {
+    // 6. Admission Done -> Admission Details only
+    else if (stageName.includes("admission done")) {
       containerBilling.style.display = "block";
+      const admBlk = document.getElementById("admissionDetailsBlock");
+      const billBlk = document.getElementById("billingDetailsBlock");
+      if (admBlk) admBlk.style.display = "block";
+      if (billBlk) billBlk.style.display = "none";
+      if (dealStatusInput) dealStatusInput.value = "INTERESTED";
+      if (admissionStatusInput) admissionStatusInput.value = "ADMISSION_DONE";
+      if (tempInput) tempInput.value = "HOT";
+    }
+    // 7. Add Payment -> Billing Details only
+    else if (stageName.includes("add payment") || stageName.includes("payment pending")) {
+      containerBilling.style.display = "block";
+      const admBlk = document.getElementById("admissionDetailsBlock");
+      const billBlk = document.getElementById("billingDetailsBlock");
+      if (admBlk) admBlk.style.display = "none";
+      if (billBlk) billBlk.style.display = "block";
+      if (dealStatusInput) dealStatusInput.value = "INTERESTED";
+      if (tempInput) tempInput.value = "HOT";
+      updateCoursePricing();
+    }
+    // 7b. Payment Done (Won) -> Confirmation Remark only
+    else if (stageName.includes("payment done")) {
+      containerBilling.style.display = "none";
       if (dealStatusInput) dealStatusInput.value = "WON";
       if (admissionStatusInput) admissionStatusInput.value = "WON";
       if (tempInput) tempInput.value = "HOT";
-      updateCoursePricing();
     }
     // 8. Cancelled (Lost)
     else if (stageName.includes("cancel") || stageName.includes("lost")) {
       containerCancelled.style.display = "block";
       inputReason.required = true;
+      if (courseSelect) courseSelect.required = false;
+      const courseLbl = document.querySelector('label[for="id_course"]');
+      if (courseLbl) courseLbl.classList.remove("required");
       if (dealStatusInput) dealStatusInput.value = "LOST";
       if (admissionStatusInput) admissionStatusInput.value = "LOST";
       if (tempInput) tempInput.value = "FREEZE";
+    }
+    if (!stageName.includes("cancel") && !stageName.includes("lost")) {
+      const courseLbl = document.querySelector('label[for="id_course"]');
+      if (courseLbl) courseLbl.classList.add("required");
     }
   }
 

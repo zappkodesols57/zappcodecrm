@@ -191,11 +191,11 @@
       </a>
       {% endif %}
 
-      {% if not lead.assigned_to and request.user.role == 'LEAD_ATTENDENT' %}
+      {% if not lead.assigned_to and request.user.role == 'LEAD_ATTENDENT' or not lead.assigned_to and request.user.role == 'COUNSELLOR' %}
       <form method="post" action="{% url 'leads:lead_self_assign' lead.pk %}" class="d-inline" onsubmit="return confirm('Do you want to capture and assign this student lead to yourself?');">
         {% csrf_token %}
         <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-semibold" style="font-size: 0.8rem;">
-          Capture &amp; Assign to Me
+          Capture<span class="d-none d-sm-inline"> &amp; Assign to Me</span>
         </button>
       </form>
       {% endif %}
@@ -929,15 +929,15 @@
               <div class="row g-2 mb-2">
                 <div class="col-4">
                   <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Date *</label>
-                  <input type="date" name="followup_date" id="timeline_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required style="font-size: 0.8rem;">
+                  <input type="date" name="followup_date" id="timeline_fu_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required style="font-size: 0.8rem; height: 36px !important; min-height: 36px !important;">
                 </div>
                 <div class="col-4">
                   <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Time Slot</label>
-                  <input type="text" name="followup_time" id="timeline_fu_time" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" style="font-size: 0.8rem;">
+                  <input type="text" name="followup_time" id="timeline_fu_time" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" style="font-size: 0.8rem; height: 36px !important; min-height: 36px !important;">
                 </div>
                 <div class="col-4">
                   <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Status</label>
-                  <select name="followup_status" class="form-select form-select-sm no-tom-select" required style="font-size: 0.8rem;">
+                  <select name="followup_status" class="form-select form-select-sm no-tom-select" required style="font-size: 0.8rem; height: 36px !important; min-height: 36px !important; padding-top: 4px !important; padding-bottom: 4px !important;">
                     <option value="PENDING" selected>Pending</option>
                     <option value="RESCHEDULED">Rescheduled</option>
                     <option value="COMPLETED">Completed</option>
@@ -947,7 +947,7 @@
               <div class="row g-2 mb-2">
                 <div class="col-12">
                   <label class="form-label text-muted mb-1" style="font-size: 0.70rem; text-transform: uppercase;">Lead Intent Level</label>
-                  <select name="intent_level" class="form-select form-select-sm no-tom-select" style="font-size: 0.8rem;">
+                  <select name="intent_level" class="form-select form-select-sm no-tom-select" style="font-size: 0.8rem; height: 36px !important; min-height: 36px !important; padding-top: 4px !important; padding-bottom: 4px !important;">
                     <option value="HIGHLY_INTERESTED" {% if lead.intent_level == 'HIGHLY_INTERESTED' %}selected{% endif %}>&#128994; Highly Interested</option>
                     <option value="MODERATE_INTERESTED" {% if lead.intent_level == 'MODERATE_INTERESTED' %}selected{% endif %}>&#128993; Moderate Interested</option>
                     <option value="NORMAL_INTERESTED" {% if lead.intent_level == 'NORMAL_INTERESTED' or not lead.intent_level %}selected{% endif %}>&#128309; Normal Interested</option>
@@ -961,7 +961,7 @@
                 <span id="timeline_time_error_text">Past time cannot be selected. Please choose an upcoming time.</span>
               </div>
               <div class="mb-2">
-                <input type="text" name="comment" class="form-control form-control-sm" placeholder="Enter follow-up comment or discussion points..." required style="font-size: 0.8rem;">
+                <textarea name="comment" rows="2" class="form-control form-control-sm" placeholder="Enter follow-up comment or discussion points..." required style="font-size: 0.82rem; min-height: 64px;"></textarea>
               </div>
               <div class="text-end">
                 <button type="submit" class="btn btn-sm btn-primary px-3 rounded-pill fw-medium" id="timeline_fu_submit" style="font-size: 0.78rem;">Save Follow-up</button>

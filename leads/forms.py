@@ -374,6 +374,14 @@ class LeadForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        stg = cleaned_data.get("stage")
+        stg_name = (stg.name if stg else "").strip().lower()
+        if "cancel" in stg_name or "lost" in stg_name:
+            if "course" in self._errors:
+                del self._errors["course"]
+            reason = (self.data.get("custom_cancellation_reason") or "").strip()
+            if not reason:
+                self.add_error(None, "Please provide a Cancellation Reason.")
         today = timezone.localdate()
         max_year = today.year + 2
 

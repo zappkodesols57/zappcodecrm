@@ -532,9 +532,6 @@
     <!-- Dashboard Header -->
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
         <div>
-            <h3 class="fw-bold text-dark mb-0">
-                Telecaller Dashboard
-            </h3>
             <span class="text-muted small">Welcome back, <strong class="text-dark">{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; {{ today_date|date:"l, d F Y" }}</span>
         </div>
         <div class="d-flex gap-2">
@@ -785,6 +782,9 @@
                                                     <i class="fa-solid fa-pen-to-square"></i>
                                                 </a>
                     {% if can_self_assign %}
+                    <button type="button" onclick="captureLeadFromTable({{ lead.pk }}, '{{ lead.name|escapejs }}')" class="btn btn-xs btn-primary rounded-pill px-2 py-1 me-1 fw-semibold" title="Capture & Assign to Me">
+                        <i class="fa-solid fa-hand-holding-hand"></i>
+                    </button>
                     <a style="background-color: #25D366; border-color: #25D366; color: #ffffff;" href="https://wa.me/91{{ lead.clean_phone_number }}?text={{ lead.whatsapp_message }}" target="_blank" rel="noopener noreferrer" class="btn btn-xs rounded-pill px-2 py-1 me-1" title="Send WhatsApp Message">
                                                     <i class="fa-brands fa-whatsapp"></i>
                                                 </a>
@@ -3483,7 +3483,6 @@
         <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
             <div class="modal-header py-2.5 px-3" style="background-color: #052042 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;">
                 <h6 class="modal-title fw-bold mb-0" id="quickFollowupModalLabel" style="color: #ffffff !important; font-size: 0.90rem; display: flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-calendar-plus text-warning" style="font-size: 0.95rem;"></i>
                     <span style="color: #ffffff !important;">Schedule Follow-up:</span>
                     <span id="qfuModalLeadName" style="color: #93c5fd !important; font-weight: 600;">Patient</span>
                 </h6>
@@ -3494,24 +3493,24 @@
                 <div class="modal-body p-3">
                     <div class="row g-2 mb-2.5">
                         <div class="col-6">
-                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">DATE *</label>
+                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.75rem;">Follow-up Date *</label>
                             <input type="date" id="qfuDate" class="form-control form-control-sm" min="{% now 'Y-m-d' %}" max="2099-12-31" required style="font-size: 0.82rem;">
                         </div>
                         <div class="col-6">
-                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">TIME (24H)</label>
+                            <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.75rem;">Time Slot</label>
                             <input type="text" id="qfuTime" class="form-control form-control-sm time-mask-input" placeholder="HH:MM" maxlength="5" inputmode="numeric" style="font-size: 0.82rem;">
                         </div>
                     </div>
                     <div class="mb-2.5">
-                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">STATUS</label>
-                        <select id="qfuStatus" class="form-select form-select-sm" style="font-size: 0.82rem;">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.75rem;">Status</label>
+                        <select id="qfuStatus" class="form-select form-select-sm" style="font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                             <option value="PENDING" selected>Pending</option>
                             <option value="RESCHEDULED">Rescheduled</option>
                             <option value="COMPLETED">Completed</option>
                         </select>
                     </div>
                     <div class="mb-1">
-                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.72rem;">COMMENT / REMARKS *</label>
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 0.75rem;">Comment / Remarks *</label>
                         <textarea id="qfuComment" rows="2" class="form-control form-control-sm" placeholder="e.g. Patient agreed for consultation next Monday..." required style="font-size: 0.82rem;"></textarea>
                     </div>
                 </div>

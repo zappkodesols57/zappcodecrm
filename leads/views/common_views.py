@@ -3846,7 +3846,25 @@ def lead_detail(request, pk):
         related_lead_ids.extend(parent_sibling_ids)
     related_lead_ids = list(set(related_lead_ids))
 
-    timeline = Activity.objects.filter(lead_id__in=related_lead_ids).order_by("-created_at")[:200]
+    raw_timeline = list(Activity.objects.filter(lead_id__in=related_lead_ids).select_related("created_by").order_by("-created_at")[:200])
+    lead_notes_norm = (lead.notes or "").strip()
+    capture_minutes = {
+        a.created_at.strftime("%Y-%m-%d %H:%M")
+        for a in raw_timeline
+        if a.activity_type == "ASSIGNMENT" and "lead captured" in (a.description or "").lower()
+    }
+    timeline = []
+    for a in raw_timeline:
+        desc = (a.description or "").strip()
+        if a.activity_type == "NOTE" and lead_notes_norm and desc == lead_notes_norm:
+            continue
+        if (
+            a.created_by_id is None
+            and a.activity_type in ("ASSIGNMENT", "STAGE_CHANGE")
+            and a.created_at.strftime("%Y-%m-%d %H:%M") in capture_minutes
+        ):
+            continue
+        timeline.append(a)
     followups = lead.followups.select_related("created_by").order_by("-id")[:50]
     admission = getattr(lead, "admission", None)
     
@@ -4410,6 +4428,10 @@ def add_followup(request, pk):
 
         if target_lead.assigned_to is None:
             target_lead.assigned_to = request.user
+        if not target_lead.stage or target_lead.stage.name.strip().lower() in ("fresh", "assigned", "new", "open"):
+            fu_stage = LeadStage.objects.filter(hospital=target_lead.hospital, name__iexact="Add Follow Up").first()
+            if fu_stage:
+                target_lead.stage = fu_stage
         if not target_lead.stage or target_lead.stage.name.lower() in ['new', 'fresh', 'uncontacted', 'assigned', 'lost', 'cancelled']:
             fu_stage = (
                 LeadStage.objects.filter(name__iexact='Follow up', is_active=True).first()
@@ -4665,17 +4687,19 @@ def lead_self_assign(request, pk):
     if isinstance(lead.custom_data, dict):
         lead.custom_data['lead_attendant'] = user_full_name
 
+    old_stage_name = lead.stage.name if lead.stage else "Fresh"
     if not lead.stage or lead.stage.name.lower() in ['new', 'fresh', 'uncontacted']:
         assigned_stage = LeadStage.objects.filter(name__iexact='Assigned').first() or LeadStage.objects.filter(name__iexact='Contacted').first()
         if assigned_stage:
             lead.stage = assigned_stage
+    new_stage_name = lead.stage.name if lead.stage else old_stage_name
     lead.save()
 
     Activity.objects.create(
         lead=lead,
         created_by=request.user,
         activity_type="ASSIGNMENT",
-        description=f"Lead captured / self-assigned by {user_full_name}.",
+        description=f"Lead captured by {user_full_name}. Stage changed from '{old_stage_name}' to '{new_stage_name}'.",
     )
     success_msg = f"🎉 Lead #{lead.lead_code or lead.pk} ({lead.name}) successfully captured and assigned to you!"
 
